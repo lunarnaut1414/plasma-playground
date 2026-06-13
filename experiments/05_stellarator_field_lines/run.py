@@ -47,7 +47,7 @@ def iota_analytic(r):
     return (b_theta(r) / r) / BZ * L / (2 * np.pi)
 
 
-def main(save: bool = False):
+def main(save: bool = False, n_crossings=40, profile_n=9):
     print("=" * 64)
     print("Experiment 05 (F1) — stellarator field lines (screw pinch)")
     print("=" * 64)
@@ -60,7 +60,7 @@ def main(save: bool = False):
 
     for r0 in surface_radii:
         pts = poincare_section(B, x0=[r0, 0.0, 0.0], period=L,
-                               n_crossings=40, ds=0.015)
+                               n_crossings=n_crossings, ds=0.015)
         axp.scatter(pts[:, 0], pts[:, 1], s=6, label=f"r₀={r0:.2f}")
         iota = rotational_transform(pts)
         print(f"  surface r₀={r0:.2f}:  ι_measured={iota:+.4f}  "
@@ -72,11 +72,11 @@ def main(save: bool = False):
     axp.legend(fontsize=8, loc="upper right")
 
     # --- ι(r) profile: measured vs analytic ------------------------------
-    radii = np.linspace(0.1, 0.85, 9)
+    radii = np.linspace(0.1, 0.85, profile_n)
     iota_meas = []
     for r0 in radii:
         pts = poincare_section(B, x0=[r0, 0.0, 0.0], period=L,
-                               n_crossings=20, ds=0.015)
+                               n_crossings=max(5, n_crossings // 2), ds=0.015)
         iota_meas.append(rotational_transform(pts))
 
     rr = np.linspace(0.05, 0.9, 200)

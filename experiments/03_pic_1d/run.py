@@ -46,10 +46,10 @@ def _energies(sim):
 
 # --- F1: cold plasma oscillation -----------------------------------------
 
-def run_cold(save=False):
+def run_cold(save=False, n_particles=20000, n_steps=2000):
     print("\n--- cold plasma oscillation (F1) ---")
     rng = np.random.default_rng(0)
-    N = 20000
+    N = n_particles
     # A *truly* cold plasma (v_th = 0) has zero Debye length, so the PIC grid is
     # always under-resolved (dx > π λ_D) and a numerical grid-heating instability
     # grows. A small thermal spread sets λ_D ≈ 0.05 > dx/π and stabilizes it,
@@ -60,7 +60,7 @@ def run_cold(save=False):
     q, m = omega_pe_one(N)
     sim = pic.ElectrostaticPIC1D(L, NG, x, v, q, m, eps0=1.0)
 
-    dt, n_steps = 0.05, 2000
+    dt = 0.05
     t = np.arange(n_steps) * dt
     mode1 = np.empty(n_steps)
     ke = np.empty(n_steps)
@@ -101,17 +101,17 @@ def _loglinear_rate(t, amp, t0, t1):
 LANDAU_GAMMA = 0.1533
 
 
-def run_landau(save=False):
+def run_landau(save=False, n_particles=200000, n_steps=700):
     print("\n--- Landau damping (F2) ---")
     rng = np.random.default_rng(0)
-    N, NG_l = 200000, 128
+    N, NG_l = n_particles, 128
     v_th = 0.5                       # k λ_D = 0.5 at k = 1
     x, v = pic.load_maxwellian(N, L, v_thermal=v_th, rng=rng)
     x = pic.perturb_positions(x, L, amplitude=0.01, mode=1)
     q, m = omega_pe_one(N)
     sim = pic.ElectrostaticPIC1D(L, NG_l, x, v, q, m, eps0=1.0)
 
-    dt, n_steps = 0.05, 700
+    dt = 0.05
     t = np.arange(n_steps) * dt
     amp = np.empty(n_steps)
     for n in range(n_steps):
@@ -147,17 +147,17 @@ def two_stream_growth_rate(k, v0, omega_pe=1.0):
     return float(np.max(omegas.imag))
 
 
-def run_twostream(save=False):
+def run_twostream(save=False, n_particles=200000, n_steps=600):
     print("\n--- two-stream instability (F2) ---")
     rng = np.random.default_rng(0)
-    N, NG_t = 200000, 128
+    N, NG_t = n_particles, 128
     v0, v_th = 0.6, 0.03            # k v0 = 0.6 < ω_pe -> mode 1 unstable
     x, v = pic.load_two_stream(N, L, v_beam=v0, v_thermal=v_th, rng=rng)
     x = pic.perturb_positions(x, L, amplitude=0.01, mode=1)
     q, m = omega_pe_one(N)
     sim = pic.ElectrostaticPIC1D(L, NG_t, x, v, q, m, eps0=1.0)
 
-    dt, n_steps = 0.05, 600
+    dt = 0.05
     t = np.arange(n_steps) * dt
     amp = np.empty(n_steps)
     snaps = {}
@@ -180,7 +180,7 @@ def run_twostream(save=False):
     a1.set_ylim(amp[amp > 0].min() * 0.5, amp.max() * 2)
 
     xf, vf = snaps[n_steps - 1]
-    idx = rng.choice(len(xf), 8000, replace=False)
+    idx = rng.choice(len(xf), min(8000, len(xf)), replace=False)
     a2.scatter(xf[idx], vf[idx], s=1, alpha=0.3)
     a2.set_xlabel("x"); a2.set_ylabel("v")
     a2.set_title("Phase space at saturation (the 'hole')")

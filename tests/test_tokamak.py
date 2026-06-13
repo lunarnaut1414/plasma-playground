@@ -18,9 +18,11 @@ from plasmaplay.solvers import grad_shafranov_solve
 from plasmaplay.tokamak import (
     divergence,
     equilibrium_field,
+    safety_factor,
     solovev_F,
     to_cartesian,
     to_cylindrical,
+    toroidal_poincare,
     vacuum_F,
 )
 
@@ -153,3 +155,84 @@ def test_field_line_stays_bounded_on_a_flux_surface():
     Rline = np.hypot(pts[:, 0], pts[:, 1])
     assert Rline.min() > R0 - 0.55 and Rline.max() < R0 + 0.55
     assert np.all(np.abs(pts[:, 2]) < 0.7)
+
+
+# --- T1: q-profile & toroidal Poincaré -----------------------------------
+
+def _circular_equilibrium(Rc=10.0, B0c=1.0, a=1.0, Bth0=0.05, n=241):
+    """Large-aspect-ratio circular equilibrium with uniform current.
+
+    ψ = C·r², r² = (R−Rc)² + Z², C = Rc·Bθ0/(2a) gives B_θ = Bθ0·(r/a), so the
+    safety factor is uniform: q = a·B0 /(Rc·Bθ0). Flux surfaces are exact circles.
+    """
+    C = Rc * Bth0 / (2.0 * a)
+    R = np.linspace(Rc - 1.2, Rc + 1.2, n)
+    Z = np.linspace(-1.2, 1.2, n)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    psi = C * ((RR - Rc) ** 2 + ZZ ** 2)
+    field = equilibrium_field(R, Z, psi, vacuum_F(Rc, B0c))
+    q_analytic = a * B0c / (Rc * Bth0)
+    return field, (Rc, 0.0), q_analytic
+
+
+def test_safety_factor_matches_large_aspect_analytic():
+    # ds=0.05 is as accurate as ds=0.02 here (field lines are exact circles, so
+    # RK4 arc-length tracing is converged) but ~2.5× faster — see the T1 memo.
+    field, axis, q_exact = _circular_equilibrium()      # q_exact = 2.0
+    for r in (0.4, 0.7, 1.0):
+        q = safety_factor(field, (axis[0] + r, 0.0), axis, n_poloidal=6, ds=0.05)
+        assert abs(abs(q) - q_exact) / q_exact < 0.03   # within 3% of analytic q
+
+
+def test_safety_factor_converges_with_trace_length():
+    field, axis, _ = _circular_equilibrium()
+    q4 = safety_factor(field, (axis[0] + 0.7, 0.0), axis, n_poloidal=4, ds=0.05)
+    q10 = safety_factor(field, (axis[0] + 0.7, 0.0), axis, n_poloidal=10, ds=0.05)
+    assert abs(q4 - q10) / abs(q10) < 0.02              # q is a converged number
+
+
+def _sheared_circular_equilibrium(Rc=10.0, B0c=1.0, a=1.0, q0=1.0, n=261):
+    """Large-aspect circular equilibrium with q(r) ≈ q₀(1+(r/a)²) (sheared).
+
+    ψ(r) = (B0c a²/2q₀) ln(1+(r/a)²). Because q varies with radius it is
+    irrational on essentially every surface, so a traced field line fills its
+    circle *densely* — the honest test of "closed nested surface". (The uniform
+    q = 2 equilibrium above is rational: a line closes after 2 toroidal turns and
+    punctures φ=0 at just 2 points, which would pass the std/mean check trivially.
+    See docs/T1_QPROFILE_POINCARE.md.)
+    """
+    R = np.linspace(Rc - 1.2, Rc + 1.2, n)
+    Z = np.linspace(-1.2, 1.2, n)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    r2 = (RR - Rc) ** 2 + ZZ ** 2
+    psi = (B0c * a**2 / (2.0 * q0)) * np.log1p(r2 / a**2)
+    return equilibrium_field(R, Z, psi, vacuum_F(Rc, B0c)), (Rc, 0.0)
+
+
+def test_poincare_is_a_closed_nested_surface():
+    field, axis = _sheared_circular_equilibrium()
+    # one surface: a line on it densely fills a single circle — every one of many
+    # distinct punctures sits at the same minor radius.
+    pc = toroidal_poincare(field, (axis[0] + 0.7, 0.0), n_punctures=60, ds=0.06)
+    minor = np.hypot(pc[:, 0] - axis[0], pc[:, 1])
+    poloidal = np.arctan2(pc[:, 1], pc[:, 0] - axis[0])
+    assert minor.std() / minor.mean() < 2e-3
+    assert np.ptp(poloidal) > 5.0          # punctures spread around the circle (≈2π)
+    # two surfaces are nested: the inner launch stays inside the outer
+    inner = toroidal_poincare(field, (axis[0] + 0.4, 0.0), n_punctures=30, ds=0.06)
+    r_inner = np.hypot(inner[:, 0] - axis[0], inner[:, 1]).mean()
+    assert r_inner < minor.mean()
+
+
+def test_safety_factor_shear_increases_outward():
+    # a real (shaped, tight-aspect) Solov'ev equilibrium has magnetic shear:
+    # |q| grows monotonically from the axis toward the edge.
+    R, Z, psi = _equilibrium_grid(n=161)
+    i, j = np.unravel_index(np.argmax(psi), psi.shape)
+    axis = (R[i], Z[j])
+    field = equilibrium_field(R, Z, psi, vacuum_F(R0, B0))
+    qs = [abs(safety_factor(field, (axis[0] + r, axis[1]), axis,
+                            n_poloidal=8, ds=0.05))
+          for r in (0.1, 0.2, 0.3, 0.4)]
+    assert all(qs[k] < qs[k + 1] for k in range(len(qs) - 1))
+    assert qs[0] > 0.5                                  # finite q on/near the axis

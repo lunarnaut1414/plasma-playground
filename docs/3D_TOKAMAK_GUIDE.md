@@ -54,7 +54,9 @@ already have**. Everything downstream (T1, T2) is then mostly *reuse*.
 Each rung: the goal, the physics, what to build (and which existing kernel it
 reuses), the validation check, and rough compute.
 
-### T0 — The 3-D equilibrium field (the bridge)
+### T0 — The 3-D equilibrium field (the bridge)  ✅ **done**
+*Built: `plasmaplay/tokamak.py::equilibrium_field`, viz `tokamak_t0_viz.py`,
+tests `tests/test_tokamak.py`.*
 - **Goal:** a callable `tokamak_field(x) -> (3,) B` built from an experiment-04 equilibrium.
 - **Build:** new `plasmaplay/tokamak.py`:
   - `equilibrium_field(R, Z, psi, F_of_psi)` — finite-difference B_R, B_Z; B_φ = F/R; bilinear-interpolate onto arbitrary (R, Z); convert (X,Y,Z) ↔ (R, φ, Z).
@@ -63,7 +65,9 @@ reuses), the validation check, and rough compute.
 - **Validation:** **∇·B ≈ 0** numerically everywhere; on the magnetic axis B is purely toroidal; |B| ∝ 1/R to leading order (the 1/R tokamak field). 
 - **Compute:** instant (interpolation).
 
-### T1 — Field-line topology & the q-profile
+### T1 — Field-line topology & the q-profile  ✅ **done**
+*Built: `tokamak.py::{toroidal_poincare, safety_factor}`, viz `tokamak_t1_viz.py`,
+memo [`T1_QPROFILE_POINCARE.md`](T1_QPROFILE_POINCARE.md).*
 - **Goal:** trace field lines, make a Poincaré section at φ = const, extract the safety factor q(ψ).
 - **Build:** almost nothing new — point the existing tracer at the T0 field.
 - **Reuses:** `diagnostics.trace_field_line`, `poincare_section`, `rotational_transform` (experiment 05, **as-is**). q = 1/ι = toroidal turns per poloidal turn.

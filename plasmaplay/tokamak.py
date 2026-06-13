@@ -32,6 +32,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
+from .integrators import rk4_step
+
 
 def vacuum_F(R0: float, B0: float):
     """Constant toroidal-field function F(ψ) = R₀ B₀ (the vacuum / current-free case).
@@ -100,20 +102,20 @@ def equilibrium_field(R, Z, psi, F_of_psi):
     BZ_grid = dpsi_dR / RR                            # B_Z =  (1/R) ∂ψ/∂R
     Bphi_grid = F_of_psi(psi) / RR                    # B_φ =  F(ψ) / R
 
-    # Bilinear interpolation; extrapolate linearly past the grid so a field line
-    # or orbit that briefly steps outside still gets a finite field.
-    kw = dict(method="linear", bounds_error=False, fill_value=None)
-    interp_BR = RegularGridInterpolator((R, Z), BR_grid, **kw)
-    interp_BZ = RegularGridInterpolator((R, Z), BZ_grid, **kw)
-    interp_Bphi = RegularGridInterpolator((R, Z), Bphi_grid, **kw)
+    # One vector-valued interpolator returning (B_R, B_Z, B_φ) per call rather
+    # than three scalar interpolators — RegularGridInterpolator's per-call Python
+    # overhead dominates the field-line tracing cost, so a single call ≈ 3× faster
+    # everywhere (pushers, tracers, Poincaré). Linear (= bilinear in 2-D) with
+    # extrapolation, so a line or orbit that briefly steps outside still gets a
+    # finite field.
+    stacked = np.stack([BR_grid, BZ_grid, Bphi_grid], axis=-1)   # (nR, nZ, 3)
+    interp = RegularGridInterpolator((R, Z), stacked, method="linear",
+                                     bounds_error=False, fill_value=None)
 
     def field(position):
         x, y, z = position
         r = np.hypot(x, y)
-        pt = (r, z)
-        BR = float(interp_BR(pt))
-        BZ = float(interp_BZ(pt))
-        Bphi = float(interp_Bphi(pt))
+        BR, BZ, Bphi = interp((r, z))
         if r > 0.0:
             cos_p, sin_p = x / r, y / r               # cos φ, sin φ
         else:
@@ -135,6 +137,94 @@ def to_cylindrical(position):
 def to_cartesian(R, phi, Z):
     """Cylindrical (R, φ, Z) -> Cartesian (x, y, z) position vector."""
     return np.array([R * np.cos(phi), R * np.sin(phi), Z])
+
+
+def _unit_rhs(B_func):
+    """Arc-length RHS dx/ds = B/|B| for tracing a field line."""
+    def rhs(s, x):
+        B = np.asarray(B_func(x), dtype=float)
+        n = np.linalg.norm(B)
+        return B / n if n > 0 else B
+    return rhs
+
+
+def _wrapped(d_angle):
+    """Map an angle increment into (-π, π] — robust across the atan2 branch cut."""
+    return np.angle(np.exp(1j * d_angle))
+
+
+def toroidal_poincare(B_func, start_RZ, n_punctures, ds=0.01, max_steps=4_000_000):
+    """Toroidal Poincaré section: where a field line punctures the φ = 0 half-plane.
+
+    The natural section for a tokamak (axisymmetry axis = z, toroidal angle φ):
+    trace the line from ``start_RZ = (R, Z)`` on the φ = 0 plane and record the
+    (R, Z) of every return to φ = 0 (i.e. each completed toroidal turn). For a
+    field line on a good flux surface the punctures trace a **closed nested
+    curve** — the surface's poloidal cross-section. (The Cartesian z-plane
+    `diagnostics.poincare_section` is the stellarator analogue; a tokamak line
+    only oscillates in z, so it must be sectioned in φ instead.)
+
+    Returns
+    -------
+    crossings : (n_punctures, 2) ndarray of (R, Z) puncture points.
+    """
+    rhs = _unit_rhs(B_func)
+    x = np.array([start_RZ[0], 0.0, start_RZ[1]], dtype=float)   # on φ = 0
+    crossings = []
+    phi_acc = np.arctan2(x[1], x[0])
+    target = phi_acc + 2.0 * np.pi
+    s = 0.0
+    for _ in range(max_steps):
+        xn = rk4_step(rhs, s, x, ds)
+        s += ds
+        phi_old = phi_acc
+        phi_acc += _wrapped(np.arctan2(xn[1], xn[0]) - np.arctan2(x[1], x[0]))
+        if phi_old < target <= phi_acc:
+            frac = (target - phi_old) / (phi_acc - phi_old)
+            xc = x + frac * (xn - x)
+            crossings.append([np.hypot(xc[0], xc[1]), xc[2]])
+            target += 2.0 * np.pi
+            if len(crossings) >= n_punctures:
+                break
+        x = xn
+    return np.array(crossings)
+
+
+def safety_factor(B_func, start_RZ, axis_RZ, n_poloidal=8, ds=0.01,
+                  max_steps=4_000_000):
+    """Safety factor q of the flux surface through ``start_RZ``.
+
+    q = (toroidal turns) / (poloidal turns) of a field line — the central
+    tokamak number: q < 1 near the axis, rising outward, and rational q = m/n
+    surfaces are where islands form (rung T3). Measured by tracing the line and
+    accumulating the toroidal angle φ (about the z-axis) and poloidal angle θ
+    (about the magnetic axis ``axis_RZ = (R_axis, Z_axis)``); q = Δφ/Δθ once the
+    line has wound ``n_poloidal`` times poloidally. Angle increments are taken
+    modulo 2π so the running totals never jump at the atan2 branch cut.
+
+    For a large-aspect-ratio circular equilibrium this reproduces the analytic
+    estimate q(r) ≈ r B_φ / (R B_θ).
+    """
+    R_ax, Z_ax = axis_RZ
+    rhs = _unit_rhs(B_func)
+    x = np.array([start_RZ[0], 0.0, start_RZ[1]], dtype=float)
+    phi = np.arctan2(x[1], x[0])
+    theta = np.arctan2(x[2] - Z_ax, np.hypot(x[0], x[1]) - R_ax)
+    phi_tot = 0.0
+    theta_tot = 0.0
+    s = 0.0
+    for _ in range(max_steps):
+        xn = rk4_step(rhs, s, x, ds)
+        s += ds
+        phi_n = np.arctan2(xn[1], xn[0])
+        theta_n = np.arctan2(xn[2] - Z_ax, np.hypot(xn[0], xn[1]) - R_ax)
+        phi_tot += _wrapped(phi_n - phi)
+        theta_tot += _wrapped(theta_n - theta)
+        phi, theta = phi_n, theta_n
+        x = xn
+        if abs(theta_tot) >= n_poloidal * 2.0 * np.pi:
+            break
+    return phi_tot / theta_tot
 
 
 def divergence(B_func, position, h=1e-5):

@@ -43,20 +43,23 @@ plasma-playground/
 ## Roadmap of experiments
 
 A rough self-teaching path, from a single particle up to full devices. Add,
-reorder, and skip freely.
+reorder, and skip freely. **Each experiment has a `PLAN.md`** laying out a
+*fidelity ladder* (F0 → F4): how to grow that experiment from an analytic sanity
+check to a research-grade simulation, one assumption at a time. The shared ladder
+is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
-| # | Experiment | Core idea | Likely tools |
-|---|------------|-----------|--------------|
-| 01 | Single-particle motion ✅ | gyro-orbits, drifts, mirror trapping | numpy (Boris pusher) |
-| 02 | Guiding-center drifts | grad-B & curvature drifts, invariants | numpy / plasmapy |
-| 03 | Many particles / PIC 1D | electrostatic waves, Landau damping | numpy + numba |
-| 04 | Tokamak equilibrium | Grad–Shafranov, flux surfaces, q-profile | [FreeGS](https://github.com/freegs-plasma/freegs) |
-| 05 | Stellarator field lines | 3D fields, Poincaré plots, rotational transform | [simsopt](https://github.com/hiddenSymmetries/simsopt) |
-| 06 | Ideal MHD basics | continuity/momentum/induction, Alfvén waves | numpy / scipy |
-| 07 | MHD accelerator (space drive) | J×B body force, magnetic nozzle concept | numpy / scipy |
-| 08 | Plasma waves & dispersion | cold/warm plasma dispersion relations | [PlasmaPy](https://docs.plasmapy.org) |
+| # | Experiment | Core idea | Plan | Likely tools |
+|---|------------|-----------|------|--------------|
+| 01 | Single-particle motion ✅ | gyro-orbits, drifts, mirror trapping | [plan](experiments/01_single_particle_motion/PLAN.md) | numpy (Boris pusher) |
+| 02 | Guiding-center drifts | grad-B & curvature drifts, invariants | [plan](experiments/02_guiding_center_drifts/PLAN.md) | numpy / plasmapy |
+| 03 | Many particles / PIC 1D | electrostatic waves, Landau damping | [plan](experiments/03_pic_1d/PLAN.md) | numpy + numba |
+| 04 | Tokamak equilibrium | Grad–Shafranov, flux surfaces, q-profile | [plan](experiments/04_tokamak_equilibrium/PLAN.md) | [FreeGS](https://github.com/freegs-plasma/freegs) |
+| 05 | Stellarator field lines | 3D fields, Poincaré plots, rotational transform | [plan](experiments/05_stellarator_field_lines/PLAN.md) | [simsopt](https://github.com/hiddenSymmetries/simsopt) |
+| 06 | Ideal MHD basics | continuity/momentum/induction, Alfvén waves | [plan](experiments/06_ideal_mhd/PLAN.md) | numpy / scipy |
+| 07 | MHD accelerator (space drive) | J×B body force, magnetic nozzle concept | [plan](experiments/07_mhd_space_drive/PLAN.md) | numpy / scipy |
+| 08 | Plasma waves & dispersion | cold/warm plasma dispersion relations | [plan](experiments/08_plasma_waves_dispersion/PLAN.md) | [PlasmaPy](https://docs.plasmapy.org) |
 
-✅ = implemented.
+✅ = implemented. Each plan marks which fidelity rungs are done.
 
 ## The open-source plasma stack (what's out there)
 

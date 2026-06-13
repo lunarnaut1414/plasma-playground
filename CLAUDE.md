@@ -66,17 +66,20 @@ Not silos — a web. Honor these couplings (reuse, don't duplicate):
 ## Common commands
 
 ```bash
-# Env (pick one)
-conda env create -f environment.yml && conda activate plasma-playground && pip install -e .
-python -m venv .venv && source .venv/bin/activate && pip install -e ".[notebooks]"
+# Env — local .venv via uv (preferred). ACTIVATE before installing, else uv
+# targets an active base conda env instead of the venv.
+uv venv --python 3.11 .venv && source .venv/bin/activate && uv pip install -e ".[dev]"
+# conda alternative: conda env create -f environment.yml && conda activate plasma-playground
+
+# Always work inside the activated .venv (the dev machine has base conda active by
+# default). If unsure, use the explicit interpreter: .venv/bin/python ...
 
 # Run an experiment
-cd experiments/01_single_particle_motion && python run.py [--save]
-# (or from repo root without install: PYTHONPATH=. python experiments/01_*/run.py)
+python experiments/01_single_particle_motion/run.py [--save]
+# Headless figure check (no GUI): prefix MPLBACKEND=Agg
 
-# Headless figure check (no GUI): set MPLBACKEND=Agg
-# Tests
-pytest                      # validation suite (FUNDAMENTALS.md §2)
+# Tests / lint
+pytest                      # validation suite (FUNDAMENTALS.md §2); 37 passing
 ruff check .                # lint (line length 100, py311)
 ```
 

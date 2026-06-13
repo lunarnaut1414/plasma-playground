@@ -1,0 +1,15 @@
+# Core runtime dependencies for plasma-playground.
+#
+# NOTE: pyproject.toml is the source of truth. This file mirrors the core deps
+# for anyone who prefers `pip install -r requirements.txt`. Optional, heavier
+# extras (FreeGS, simsopt, JAX, notebooks) live in pyproject.toml under
+# [project.optional-dependencies] — install those per-experiment as you need them.
+#
+# Recommended instead:  pip install -e .        (uses pyproject.toml directly)
+
+numpy>=1.26
+scipy>=1.12
+matplotlib>=3.8
+plasmapy>=2024.7
+astropy>=6.0
+numba>=0.59

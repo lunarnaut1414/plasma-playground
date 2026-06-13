@@ -1,0 +1,10 @@
+# Development dependencies (testing + linting).
+# Installs the core runtime requirements too.
+#   pip install -r requirements-dev.txt
+#
+# Equivalent to: pip install -e ".[dev]"  (preferred — uses pyproject.toml)
+
+-r requirements.txt
+
+pytest>=8.0
+ruff>=0.4

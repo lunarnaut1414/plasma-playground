@@ -16,18 +16,24 @@ note where a GPU or more cores would help.
 ## Quickstart
 
 ```bash
-# Option A — conda (recommended on Apple Silicon for the compiled stack)
+# Option A — local venv via uv (recommended: fast, isolated, reads pyproject.toml)
+uv venv --python 3.11 .venv
+source .venv/bin/activate            # activate FIRST so tools target the venv,
+uv pip install -e ".[dev]"           #   not an active base conda env
+# (add extras as needed: ".[dev,notebooks]", ".[equilibria]", ".[stellarator]")
+
+# Option B — conda (handy for the compiled stack on Apple Silicon)
 conda env create -f environment.yml
 conda activate plasma-playground
 
-# Option B — uv / pip
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[notebooks]"
-
-# Run the first experiment
-cd experiments/01_single_particle_motion
-python run.py
+# Run the first experiment + the validation suite
+python experiments/01_single_particle_motion/run.py
+pytest
 ```
+
+> Heads-up: if a base conda env is active, `uv` will install into *it* unless you
+> `source .venv/bin/activate` first (or pass `uv pip install --python .venv/bin/python ...`).
+> The `.venv/` is gitignored — it stays local to your machine.
 
 ## Repository layout
 

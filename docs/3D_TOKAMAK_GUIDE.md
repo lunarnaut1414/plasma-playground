@@ -96,7 +96,12 @@ memo [`T3_MAGNETIC_ISLANDS.md`](T3_MAGNETIC_ISLANDS.md).*
 - **Validation:** island appears at the predicted q = m/n radius; W ∝ √(perturbation amplitude); increasing δ drives the Poincaré plot from islands → stochastic sea. This is the first genuinely **3-D** field structure.
 - **Compute:** minutes (many field-line punctures).
 
-### T4 — (stretch) Reduced 3-D MHD instabilities
+### T4 — (stretch) Reduced 3-D MHD instabilities  ✅ **done (linear, slab)**
+*Built: `plasmaplay/tearing.py`, viz `tokamak_t4_viz.py`, tests `tests/test_tearing.py`,
+memo [`T4_TEARING_MODE.md`](T4_TEARING_MODE.md). Scoped to the **linear** tearing
+mode in a **slab** (Harris sheet) — the rigorously validatable core: exact
+analytic Δ' (4-digit match) and the γ ∝ S^(−3/5) FKR law (computed slope −0.605).
+Nonlinear/toroidal evolution remains the domain of JOREK/NIMROD.*
 - **Goal:** evolve a simplified MHD model in the torus to see a **tearing mode** or **internal kink** grow — a self-consistent 3-D instability, not a prescribed perturbation.
 - **Build:** a reduced-MHD solver (Strauss reduced MHD: evolve poloidal flux ψ and vorticity/stream function U, two coupled scalar PDEs, in (r, θ, φ) with the toroidal mode n as a Fourier index). This is a real PDE project — finite differences in r, spectral in θ/φ, implicit or small-timestep explicit, with resistivity for tearing.
 - **Reuses:** the elliptic solver (`solvers`) for the stream-function inversion; FFT diagnostics for mode growth.

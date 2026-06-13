@@ -13,7 +13,10 @@ plus that the field composes with the existing pushers/tracers unchanged.
 
 import numpy as np
 
+from plasmaplay.constants import e, m_p
 from plasmaplay.diagnostics import trace_field_line
+from plasmaplay.guiding_center import gc_push, magnetic_moment
+from plasmaplay.pushers import boris_push
 from plasmaplay.solvers import grad_shafranov_solve
 from plasmaplay.tokamak import (
     divergence,
@@ -236,3 +239,89 @@ def test_safety_factor_shear_increases_outward():
           for r in (0.1, 0.2, 0.3, 0.4)]
     assert all(qs[k] < qs[k + 1] for k in range(len(qs) - 1))
     assert qs[0] > 0.5                                  # finite q on/near the axis
+
+
+# --- T2: banana orbits, trapping boundary, μ invariance ------------------
+
+# A large-aspect circular equilibrium: |B| = Rc B0 / R is an exact magnetic
+# mirror around each flux surface, so the trapped/passing boundary is the clean
+# analytic λ_c = √(2ε/(1+ε)). ZERO = no electric field.
+_TRAP_RC, _TRAP_B0 = 10.0, 1.0
+def _ZERO(x):
+    return np.zeros(3)
+
+
+def _trap_field(n=201):
+    Bth0, aa = 0.05, 1.0
+    C = _TRAP_RC * Bth0 / (2.0 * aa)
+    R = np.linspace(_TRAP_RC - 1.2, _TRAP_RC + 1.2, n)
+    Z = np.linspace(-1.2, 1.2, n)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    psi = C * ((RR - _TRAP_RC) ** 2 + ZZ ** 2)
+    return equilibrium_field(R, Z, psi, vacuum_F(_TRAP_RC, _TRAP_B0))
+
+
+def _gc_orbit(field, r, lam, energy_eV=1000.0, T=2e-3, nst=2000):
+    """Guiding-center orbit launched at the outboard midplane (Rc+r, 0)."""
+    v = np.sqrt(2.0 * energy_eV * e / m_p)
+    x0 = to_cartesian(_TRAP_RC + r, 0.0, 0.0)
+    B0 = np.linalg.norm(field(x0))
+    vpar0 = lam * v
+    vperp = np.sqrt(max(v * v - vpar0 * vpar0, 0.0))
+    mu = magnetic_moment(vperp, m_p, B0)
+    _, pos, vpar = gc_push(x0, vpar0, mu, e, m_p, _ZERO, field, T / nst, nst)
+    return pos, vpar
+
+
+def _is_trapped(field, r, lam):
+    _, vpar = _gc_orbit(field, r, lam)
+    return np.sign(vpar).min() != np.sign(vpar).max()   # v∥ reverses -> bounced
+
+
+def test_trapping_boundary_matches_sqrt_epsilon():
+    # The mirror prediction λ_c = √(2ε/(1+ε)) must separate trapped from passing:
+    # a pitch 15% below it traps (bounces), 15% above it passes. Checked at three
+    # minor radii — which also shows the boundary (= trapped fraction) grows with ε.
+    field = _trap_field()
+    for r in (0.3, 0.5, 0.7):
+        eps = r / _TRAP_RC
+        lam_c = np.sqrt(2 * eps / (1 + eps))
+        assert _is_trapped(field, r, 0.85 * lam_c)          # below boundary -> trapped
+        assert not _is_trapped(field, r, 1.15 * lam_c)      # above boundary -> passing
+
+
+def test_trapped_bounces_passing_circulates():
+    field = _trap_field()
+    r = 0.5
+    # deeply trapped: v∥ reverses and the orbit is a banana — poloidal angle stays
+    # bounded (it never gets around to the inboard side).
+    pos_t, vpar_t = _gc_orbit(field, r, 0.10)
+    theta_t = np.arctan2(pos_t[:, 2], np.hypot(pos_t[:, 0], pos_t[:, 1]) - _TRAP_RC)
+    assert np.sign(vpar_t).min() != np.sign(vpar_t).max()
+    assert np.ptp(theta_t) < np.pi                          # confined poloidally
+    # passing: v∥ keeps its sign and the particle circulates a full poloidal turn.
+    pos_p, vpar_p = _gc_orbit(field, r, 0.6)
+    theta_p = np.unwrap(np.arctan2(pos_p[:, 2],
+                                   np.hypot(pos_p[:, 0], pos_p[:, 1]) - _TRAP_RC))
+    assert np.sign(vpar_p).min() == np.sign(vpar_p).max()
+    assert abs(theta_p[-1] - theta_p[0]) > 2 * np.pi        # completes a circuit
+
+
+def test_mu_is_adiabatic_invariant():
+    # μ = m v⊥²/(2|B|) is conserved over many gyro-orbits along a full Boris orbit.
+    field = _trap_field()
+    v = np.sqrt(2.0 * 1000.0 * e / m_p)
+    x0 = to_cartesian(_TRAP_RC + 0.5, 0.0, 0.0)
+    Bv = field(x0); B0 = np.linalg.norm(Bv); bhat = Bv / B0
+    vpar0 = 0.12 * v; vperp = np.sqrt(v * v - vpar0 * vpar0)
+    e1 = np.cross(bhat, [0, 0, 1.0]); e1 /= np.linalg.norm(e1)
+    vel = vpar0 * bhat + vperp * e1
+    wc = e * B0 / m_p
+    _, pos, vels = boris_push(x0, vel, e, m_p, _ZERO, field, 2 * np.pi / wc / 30, 12000)
+    s = slice(0, len(pos), 50)
+    Bm = np.array([np.linalg.norm(field(p)) for p in pos[s]])
+    bh = np.array([field(p) / np.linalg.norm(field(p)) for p in pos[s]])
+    vp = vels[s]
+    vparr = np.einsum("ij,ij->i", vp, bh)
+    mu = m_p * (np.sum(vp**2, axis=1) - vparr**2) / (2 * Bm)
+    assert (mu.max() - mu.min()) / mu.mean() < 0.01         # μ steady to <1%

@@ -74,7 +74,9 @@ memo [`T1_QPROFILE_POINCARE.md`](T1_QPROFILE_POINCARE.md).*
 - **Validation:** field lines lie on nested closed surfaces (Poincaré = nested curves); q increases outward; for a large-aspect-ratio circular equilibrium q(r) ≈ r B_φ /(R B_θ) matches the analytic estimate within a few %.
 - **Compute:** seconds–minutes.
 
-### T2 — Particle orbits: banana orbits & drift surfaces
+### T2 — Particle orbits: banana orbits & drift surfaces  ✅ **done**
+*Built: viz `tokamak_t2_viz.py`, memo [`T2_BANANA_ORBITS.md`](T2_BANANA_ORBITS.md);
+pure reuse of `pushers.boris_push` + `guiding_center.gc_push`.*
 - **Goal:** trapped "banana" orbits and passing orbits in the real field; the trapped/passing boundary; the outward grad-B drift and why the poloidal field cancels it.
 - **Build:** nothing new — launch particles into the T0 field.
 - **Reuses:** `pushers.boris_push` and `guiding_center.gc_push` (experiments 01/02, **as-is**). Project orbits onto the (R, Z) plane.

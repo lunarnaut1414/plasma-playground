@@ -1,7 +1,7 @@
 # 05 — Stellarator field lines — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. The 3-D cousin of experiment 04.
+> **Status:** F1 implemented (`run.py`) — screw-pinch field lines, Poincaré, ι(r). F2 next.
 
 ## The question
 
@@ -33,7 +33,7 @@ Poincaré section. Helpful: experiment 04 for the flux-surface concept.
 - **Validation:** reference for the traced ι in F1.
 - **Compute:** instant.
 
-### F1 — Trace field lines in a model field
+### F1 — Trace field lines in a model field  ✅ implemented
 - **Models:** integrate the field-line ODE dx/ds = B/|B| through an analytic stellarator-like field; make a Poincaré plot at one toroidal angle.
 - **Assumes:** prescribed analytic field (no real coils yet).
 - **Method & tools:** NumPy/SciPy ODE integrator; a 3-D field helper in `plasmaplay.fields`.

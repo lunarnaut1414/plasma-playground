@@ -138,7 +138,7 @@ def test_debye_thermal_plasmafreq_relation():
 # --- 3. Optional cross-check vs PlasmaPy ----------------------------------
 
 def test_against_plasmapy():
-    plasmapy = pytest.importorskip("plasmapy")
+    pytest.importorskip("plasmapy")
     from astropy import units as u
     from plasmapy.formulary import plasma_frequency, Debye_length, Alfven_speed
 

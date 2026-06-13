@@ -10,6 +10,7 @@ whole reason its functional form looks the way it does.
 import numpy as np
 
 from plasmaplay import fields
+from plasmaplay.constants import MU_0
 
 SAMPLE_POINTS = [
     np.array([0.0, 0.0, 0.0]),
@@ -95,3 +96,27 @@ def test_mirror_is_divergence_free():
     for p in ([0.02, 0.01, 0.1], [0.05, -0.03, 0.4], [-0.04, 0.02, -0.6]):
         div = _numerical_divergence(mirror, np.array(p))
         assert abs(div) < 1e-6
+
+
+# --- V11: Biot-Savart of a circular loop vs the analytic on-axis field ----
+
+def test_v11_biot_savart_loop_on_axis():
+    # On the axis of a loop of radius a carrying current I:
+    #   B_z(z) = mu0 I a^2 / (2 (a^2 + z^2)^{3/2}),  B_x = B_y = 0.
+    a, I = 0.5, 1000.0
+    loop = fields.circular_loop(a, I, n_segments=400)
+    for z in (0.0, 0.1, 0.3, 0.7, 1.5):
+        B = loop([0.0, 0.0, z])
+        Bz_analytic = MU_0 * I * a**2 / (2.0 * (a**2 + z**2) ** 1.5)
+        assert np.isclose(B[2], Bz_analytic, rtol=1e-3)   # < 0.1% on axis
+        assert abs(B[0]) < 1e-6 * abs(Bz_analytic) + 1e-12
+        assert abs(B[1]) < 1e-6 * abs(Bz_analytic) + 1e-12
+
+
+def test_v11_loop_center_value_and_sign():
+    # At the center, B_z = mu0 I / (2a), and CCW current gives +z field.
+    a, I = 0.5, 1000.0
+    loop = fields.circular_loop(a, I, n_segments=400)
+    Bz_center = loop([0.0, 0.0, 0.0])[2]
+    assert np.isclose(Bz_center, MU_0 * I / (2.0 * a), rtol=1e-3)
+    assert Bz_center > 0

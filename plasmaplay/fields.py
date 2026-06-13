@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .constants import MU_0
+
 
 def uniform_B(Bz: float = 1.0):
     """Uniform magnetic field along +z. The simplest confinement: particles
@@ -64,3 +66,85 @@ def magnetic_mirror(B0: float = 1.0, mirror_ratio: float = 2.0, length: float = 
         return np.array([Bx, By, Bz])
 
     return field
+
+
+def screw_pinch(Bz: float = 1.0, twist: float = 0.2, b_theta=None):
+    """Idealized 'straight stellarator' / screw-pinch field.
+
+        B = Bz ẑ + B_θ(r) θ̂          (cylindrical; θ̂ = (-y, x)/r)
+
+    Field lines lie on nested cylinders r = const and wind helically. With the
+    default linear profile B_θ = twist · r the winding is rigid: every surface
+    has the same rotational transform per axial length L,
+
+        ι = twist · L / (2π Bz),
+
+    which makes it the clean analytic check for field-line tracing (test V13).
+    Pass a callable ``b_theta(r)`` for a sheared ι(r) profile (used by the
+    experiment to make non-trivial flux surfaces). The field is divergence-free
+    for any B_θ(r) because B_θ depends only on r.
+    """
+    def field(position):
+        x, y, z = position
+        r = np.hypot(x, y)
+        Bth = twist * r if b_theta is None else b_theta(r)
+        if r == 0.0:
+            return np.array([0.0, 0.0, Bz])
+        # azimuthal unit vector θ̂ = (-y, x)/r
+        return np.array([-Bth * y / r, Bth * x / r, Bz])
+
+    return field
+
+
+def circular_loop_coil(radius: float, n_segments: int = 200,
+                       center=(0.0, 0.0, 0.0), normal=(0.0, 0.0, 1.0)):
+    """Return (n_segments, 3) points sampling a circular current loop.
+
+    The points are vertices of a closed polygon (the segment from the last
+    vertex back to the first closes the loop) — feed straight into
+    `biot_savart`. `normal` sets the loop's orientation.
+    """
+    n = np.asarray(normal, dtype=float)
+    n /= np.linalg.norm(n)
+    # pick any vector not parallel to n, then build an orthonormal in-plane basis
+    seed = np.array([1.0, 0.0, 0.0]) if abs(n[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    u = np.cross(seed, n)
+    u /= np.linalg.norm(u)
+    v = np.cross(n, u)
+    phi = np.linspace(0.0, 2.0 * np.pi, n_segments, endpoint=False)
+    pts = (np.asarray(center, dtype=float)
+           + radius * (np.outer(np.cos(phi), u) + np.outer(np.sin(phi), v)))
+    return pts
+
+
+def biot_savart(coil, current: float):
+    """Magnetic field of a closed current loop via the Biot-Savart law.
+
+        B(r) = (μ0 I / 4π) Σ  dl × (r - r_mid) / |r - r_mid|³
+
+    `coil` is an (N, 3) array of vertices of a closed polygon (e.g. from
+    `circular_loop_coil`); each consecutive pair is a straight current segment,
+    and the loop closes from the last vertex back to the first. Returns the usual
+    callable ``field(position) -> (3,) ndarray``.
+    """
+    coil = np.asarray(coil, dtype=float)
+    starts = coil
+    ends = np.roll(coil, -1, axis=0)
+    dl = ends - starts                       # (N, 3) segment vectors
+    mid = 0.5 * (starts + ends)              # (N, 3) segment midpoints
+    const = MU_0 * current / (4.0 * np.pi)
+
+    def field(position):
+        r = np.asarray(position, dtype=float) - mid          # (N, 3)
+        r_norm = np.linalg.norm(r, axis=1)                   # (N,)
+        dB = const * np.cross(dl, r) / r_norm[:, None] ** 3  # (N, 3)
+        return dB.sum(axis=0)
+
+    return field
+
+
+def circular_loop(radius: float, current: float, n_segments: int = 200,
+                  center=(0.0, 0.0, 0.0), normal=(0.0, 0.0, 1.0)):
+    """Convenience: Biot-Savart field of a single circular current loop."""
+    coil = circular_loop_coil(radius, n_segments, center, normal)
+    return biot_savart(coil, current)

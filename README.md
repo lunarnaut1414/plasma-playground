@@ -60,7 +60,7 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 | 02 | Guiding-center drifts | grad-B & curvature drifts, invariants | [plan](experiments/02_guiding_center_drifts/PLAN.md) | numpy / plasmapy |
 | 03 | Many particles / PIC 1D | electrostatic waves, Landau damping | [plan](experiments/03_pic_1d/PLAN.md) | numpy + numba |
 | 04 | Tokamak equilibrium | Grad–Shafranov, flux surfaces, q-profile | [plan](experiments/04_tokamak_equilibrium/PLAN.md) | [FreeGS](https://github.com/freegs-plasma/freegs) |
-| 05 | Stellarator field lines | 3D fields, Poincaré plots, rotational transform | [plan](experiments/05_stellarator_field_lines/PLAN.md) | [simsopt](https://github.com/hiddenSymmetries/simsopt) |
+| 05 | Stellarator field lines ✅ | 3D fields, Poincaré plots, rotational transform | [plan](experiments/05_stellarator_field_lines/PLAN.md) | [simsopt](https://github.com/hiddenSymmetries/simsopt) |
 | 06 | Ideal MHD basics | continuity/momentum/induction, Alfvén waves | [plan](experiments/06_ideal_mhd/PLAN.md) | numpy / scipy |
 | 07 | MHD accelerator (space drive) | J×B body force, magnetic nozzle concept | [plan](experiments/07_mhd_space_drive/PLAN.md) | numpy / scipy |
 | 08 | Plasma waves & dispersion | cold/warm plasma dispersion relations | [plan](experiments/08_plasma_waves_dispersion/PLAN.md) | [PlasmaPy](https://docs.plasmapy.org) |

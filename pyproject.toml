@@ -51,3 +51,11 @@ packages = ["plasmaplay"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# Conventions this project deliberately uses:
+#   E741 — single-letter physics names (I for current, B, E, ...) are clearer
+#          here than verbose alternatives and match the formulae in docstrings.
+#   E702 — compact paired statements in plotting code (ax.set_xlabel(...);
+#          ax.set_ylabel(...)) keep figure setup readable.
+ignore = ["E741", "E702"]

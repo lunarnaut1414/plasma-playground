@@ -19,7 +19,10 @@ installed.
 | V0 | constants / formulary (ω_pe, λ_D, v_A, ω_c, r_L) | ✅ |
 | V1 | Boris pusher energy conservation + gyroradius | ✅ |
 | V2 | E×B drift = E/B | ✅ |
-| V3–V15 | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
+| V3 | RK4 integrator 4th-order convergence | ✅ |
+| V11 | Biot–Savart loop vs analytic on-axis field | ✅ |
+| V13 | field-line tracing → ι; flux surfaces close | ✅ |
+| others | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
 
 Beyond the physics-validation V-tests, each step-1 module also has **unit-level
 tests** of its contract and edge cases:
@@ -30,3 +33,6 @@ tests** of its contract and edge cases:
   mirror's on-axis profile, symmetry, inward radial field, and **∇·B = 0**.
 - `test_pushers.py` — output shapes, zero-field straight-line motion, pure-E
   uniform acceleration, charge-sign reversal, one-period return, list/array parity.
+- `test_integrators.py` — RK4 convergence order + exactness on a constant RHS.
+- `test_diagnostics.py` — field-line tracing stays on flux surfaces; ι is
+  radius-independent for a shearless profile.

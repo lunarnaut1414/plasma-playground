@@ -25,17 +25,17 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 | **Constants & formulary** (ω_c, r_L, ω_pe, λ_D, v_A) | `constants.py` | all | ✅ done |
 | **Analytic field models** (uniform, mirror, toroidal, coil) | `fields.py` | 01, 02, 05, 07 | ✅ partial |
 | **Boris pusher** (particle orbit) | `pushers.py` | 01, 02 | ✅ done |
-| **RK4 / ODE integrator** (field lines, guiding center) | `integrators.py` *(new)* | 02, 05 | ☐ |
+| **RK4 / ODE integrator** (field lines, guiding center) | `integrators.py` | 02, 05 | ✅ done |
 | **Grid ↔ particle weighting** (CIC deposit/interpolate) | `pic.py` *(new)* | 03 | ☐ |
 | **FFT Poisson solver** (1-D & 2-D periodic) | `solvers.py` *(new)* | 03 | ☐ |
 | **Finite-difference elliptic solver** (Laplacian / Grad–Shafranov Δ*) | `solvers.py` *(new)* | 04 | ☐ |
 | **Finite-volume hyperbolic solver** (1-D → 2-D, Riemann) | `fvm.py` *(new)* | 06, 07 | ☐ |
 | **∇·B control** (constrained transport / cleaning) | `fvm.py` *(new)* | 06, 07 | ☐ |
-| **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ☐ |
+| **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ✅ done |
 | **Distribution loaders** (Maxwellian, two-beam) | `pic.py` *(new)* | 03 | ☐ |
 | **Collision operator** (Monte-Carlo pitch-angle) | `collisions.py` *(new)* | 01, 02 | ☐ |
 | **Plasma dispersion function** Z(ζ) | `dispersion.py` *(new)* | 08 | ☐ |
-| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` *(new)* | 03, 05, 06, 08 | ☐ |
+| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` | 03, 05, 06, 08 | ◐ Poincaré + ι done; ω–k pending |
 | **Conservation monitors** (energy, μ, ∇·B) | `diagnostics.py` *(new)* | all | ☐ |
 
 Design conventions these must follow (so they compose):
@@ -65,9 +65,8 @@ plot-producing version in the relevant experiment.
   orbits. *Pass: relative energy drift < 1e-10; radius = r_L.*
 - **V2 · E×B drift** *(✅ in exp 01)* — crossed E, B. *Pass: measured guiding-center
   drift = E/B within 1%.*
-- **V3 · ODE integrator accuracy** — RK4 on a problem with known solution (harmonic
-  oscillator, or a circular field line in a dipole). *Pass: 4th-order convergence as
-  dt halves.*
+- **V3 · ODE integrator accuracy** *(✅ in `tests/test_integrators.py`)* — RK4 on the
+  harmonic oscillator. *Pass: log-error vs log-dt slope in (3.8, 4.2) — 4th order.*
 - **V4 · FFT Poisson 1-D** — periodic source ρ = sin(kx); compare to analytic φ.
   *Pass: L2 error at round-off for a single mode; 2nd-order convergence for a general
   source.*
@@ -86,13 +85,14 @@ plot-producing version in the relevant experiment.
 
 - **V10 · FFT Poisson 2-D** — ρ = sin(k_x x)·sin(k_y y) vs analytic φ. *Pass: round-off
   for a single mode; 2nd-order convergence otherwise.*
-- **V11 · Biot–Savart loop** — field of a single circular current loop vs the on-axis
-  analytic formula B_z(0,0,z). *Pass: < 0.1% on axis.*
+- **V11 · Biot–Savart loop** *(✅ in `tests/test_fields.py`)* — field of a single circular
+  current loop vs the on-axis analytic formula B_z(0,0,z). *Pass: < 0.1% on axis.*
 - **V12 · Grad–Shafranov vs Solov'ev** — fixed-boundary GS solver with Solov'ev
   profiles vs the closed-form ψ (exp 04 F1 vs F0). *Pass: L2 error → 0 with grid
   refinement (2nd order).*
-- **V13 · Field-line ι** — trace a known analytic field; Poincaré → rotational
-  transform. *Pass: measured ι = analytic value within 1%; surfaces close.*
+- **V13 · Field-line ι** *(✅ in `tests/test_diagnostics.py`)* — trace the screw-pinch
+  field; Poincaré → rotational transform. *Pass: measured ι = analytic within 1%;
+  surfaces close (punctures at constant radius).*
 - **V14 · Orszag–Tang** — 2-D MHD vortex. *Pass: density/pressure structure matches the
   canonical reference; **∇·B stays at round-off** (the real test of the CT scheme).*
 - **V15 · ω–k recovery** — FFT field data from V5/V6/V8 runs into the ω–k plane.

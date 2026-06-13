@@ -1,0 +1,53 @@
+[project]
+name = "plasma-playground"
+version = "0.1.0"
+description = "A collection of fun plasma physics simulation experiments for self-teaching"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Julian Wang" }]
+
+dependencies = [
+    # Core scientific stack
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "matplotlib>=3.8",
+    # Plasma-specific
+    "plasmapy>=2024.7",   # plasma formulary, particle tracking, dispersion
+    "astropy>=6.0",       # units & constants (PlasmaPy builds on this)
+    # Performance (both work well on Apple Silicon)
+    "numba>=0.59",
+]
+
+[project.optional-dependencies]
+# Heavier / domain-specific packages — install when you reach those experiments.
+# Kept optional so the base env stays light and fast to set up.
+equilibria = [
+    "freegs>=0.7",        # free-boundary Grad-Shafranov (tokamak equilibria)
+]
+stellarator = [
+    "simsopt>=1.7",       # stellarator optimization & field-line tracing
+    # "desc-opt",         # 3D equilibria (JAX-based) — add when you need it
+]
+jax = [
+    "jax>=0.4",           # autodiff / accel; CPU is most reliable on macOS
+]
+notebooks = [
+    "jupyterlab>=4.0",
+    "ipympl>=0.9",        # interactive matplotlib in notebooks
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plasmaplay"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

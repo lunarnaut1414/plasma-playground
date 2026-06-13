@@ -26,16 +26,16 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 | **Analytic field models** (uniform, mirror, toroidal, coil) | `fields.py` | 01, 02, 05, 07 | ✅ partial |
 | **Boris pusher** (particle orbit) | `pushers.py` | 01, 02 | ✅ done |
 | **RK4 / ODE integrator** (field lines, guiding center) | `integrators.py` | 02, 05 | ✅ done |
-| **Grid ↔ particle weighting** (CIC deposit/interpolate) | `pic.py` *(new)* | 03 | ☐ |
-| **FFT Poisson solver** (1-D & 2-D periodic) | `solvers.py` *(new)* | 03 | ☐ |
+| **Grid ↔ particle weighting** (CIC deposit/interpolate) | `pic.py` | 03 | ✅ done |
+| **FFT Poisson solver** (1-D & 2-D periodic) | `solvers.py` | 03 | ✅ done |
 | **Finite-difference elliptic solver** (Laplacian / Grad–Shafranov Δ*) | `solvers.py` *(new)* | 04 | ☐ |
 | **Finite-volume hyperbolic solver** (1-D → 2-D, Riemann) | `fvm.py` *(new)* | 06, 07 | ☐ |
 | **∇·B control** (constrained transport / cleaning) | `fvm.py` *(new)* | 06, 07 | ☐ |
 | **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ✅ done |
-| **Distribution loaders** (Maxwellian, two-beam) | `pic.py` *(new)* | 03 | ☐ |
+| **Distribution loaders** (Maxwellian, two-beam) | `pic.py` | 03 | ✅ done |
 | **Collision operator** (Monte-Carlo pitch-angle) | `collisions.py` *(new)* | 01, 02 | ☐ |
 | **Plasma dispersion function** Z(ζ) | `dispersion.py` *(new)* | 08 | ☐ |
-| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` | 03, 05, 06, 08 | ◐ Poincaré + ι done; ω–k pending |
+| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` | 03, 05, 06, 08 | ◐ Poincaré, ι, dominant-frequency done; ω–k pending |
 | **Conservation monitors** (energy, μ, ∇·B) | `diagnostics.py` *(new)* | all | ☐ |
 
 Design conventions these must follow (so they compose):
@@ -67,15 +67,18 @@ plot-producing version in the relevant experiment.
   drift = E/B within 1%.*
 - **V3 · ODE integrator accuracy** *(✅ in `tests/test_integrators.py`)* — RK4 on the
   harmonic oscillator. *Pass: log-error vs log-dt slope in (3.8, 4.2) — 4th order.*
-- **V4 · FFT Poisson 1-D** — periodic source ρ = sin(kx); compare to analytic φ.
-  *Pass: L2 error at round-off for a single mode; 2nd-order convergence for a general
-  source.*
-- **V5 · Cold-plasma oscillation** — perturbed cold slab in 1-D PIC. *Pass: measured
-  frequency = ω_pe within a few %; energy bounded; requires dx < λ_D.*
-- **V6 · Landau damping** — Maxwellian Langmuir wave in 1-D PIC. *Pass: measured
-  damping rate γ matches the analytic Landau rate (exp 03 F0) within ~10–20%.*
-- **V7 · Two-stream growth rate** — counter-streaming beams. *Pass: linear growth rate
-  matches theory before saturation.*
+- **V4 · FFT Poisson 1-D** *(✅ in `tests/test_solvers.py`)* — periodic source vs analytic
+  φ. *Pass: round-off for any grid-resolved source (spectral solver is exact per mode,
+  stronger than the 2nd-order a finite-difference solve would give).*
+- **V5 · Cold-plasma oscillation** *(✅ in `tests/test_pic_physics.py`)* — perturbed cold
+  plasma in 1-D PIC. *Pass: measured frequency = ω_pe within 5% (measured 1.005),
+  independent of mode.*
+- **V6 · Landau damping** *(✅ in `tests/test_pic_landau.py`)* — Maxwellian Langmuir wave,
+  k λ_D = 0.5. *Pass: measured γ matches the Landau rate 0.1533 ω_pe within ~35%
+  (PIC noise); measured ≈ 0.17.*
+- **V7 · Two-stream growth rate** *(✅ in `tests/test_pic_landau.py`)* — counter-streaming
+  beams. *Pass: linear growth rate matches the cold-dispersion root within ~30%
+  (theory 0.353, measured ≈ 0.32); plus marginal-stability checks.*
 - **V8 · 1-D shock tubes** — finite-volume solver on Sod (hydro sanity) then **Brio–Wu**
   (MHD). *Pass: profiles overlay the published reference at the standard output time.*
 - **V9 · Kinetic dispersion** — Z(ζ) root-find gives Bohm–Gross frequency **and**
@@ -83,8 +86,8 @@ plot-producing version in the relevant experiment.
 
 ### Tier 2 — 2-D / field kernels
 
-- **V10 · FFT Poisson 2-D** — ρ = sin(k_x x)·sin(k_y y) vs analytic φ. *Pass: round-off
-  for a single mode; 2nd-order convergence otherwise.*
+- **V10 · FFT Poisson 2-D** *(✅ in `tests/test_solvers.py`)* — ρ = sin(k_x x)·sin(k_y y)
+  vs analytic φ. *Pass: round-off (spectral).*
 - **V11 · Biot–Savart loop** *(✅ in `tests/test_fields.py`)* — field of a single circular
   current loop vs the on-axis analytic formula B_z(0,0,z). *Pass: < 0.1% on axis.*
 - **V12 · Grad–Shafranov vs Solov'ev** — fixed-boundary GS solver with Solov'ev
@@ -104,10 +107,10 @@ plot-producing version in the relevant experiment.
 
 A path that makes each step usable immediately and keeps you on already-tested ground:
 
-1. **Finish Tier 0 + V1–V2** — formulary cross-check; lock in the Boris pusher (mostly done). *Foundation for 01/02.*
-2. **`integrators.py` + V3**, then **Biot–Savart + V11** — unlocks experiment 05 field-line tracing (V13) and experiment 02 guiding center.
-3. **`solvers.py` Poisson (V4, V10)** + **`pic.py` weighting/loaders** — unlocks the whole PIC experiment 03 (V5 → V6 → V7).
-4. **`solvers.py` elliptic + V12** — unlocks tokamak equilibrium (experiment 04).
+1. ✅ **Finish Tier 0 + V1–V2** — formulary cross-check; Boris pusher locked in. *Foundation for 01/02.*
+2. ✅ **`integrators.py` + V3**, then **Biot–Savart + V11** — unlocked experiment 05 field-line tracing (V13). (Guiding-center / experiment 02 still to do.)
+3. ✅ **`solvers.py` Poisson (V4, V10)** + **`pic.py` weighting/loaders** — unlocked the whole PIC experiment 03 (V5 → V6 → V7).
+4. **`solvers.py` elliptic + V12** — unlocks tokamak equilibrium (experiment 04). ← next
 5. **`fvm.py` 1-D (V8)** → **2-D + ∇·B (V14)** — unlocks MHD (06) and the space drive (07).
 6. **`dispersion.py` + Z (V9)** and **ω–k diagnostic (V15)** — unlocks experiment 08 and ties the kinetic/fluid pictures together.
 

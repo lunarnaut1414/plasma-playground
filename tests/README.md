@@ -20,6 +20,11 @@ installed.
 | V1 | Boris pusher energy conservation + gyroradius | ✅ |
 | V2 | E×B drift = E/B | ✅ |
 | V3 | RK4 integrator 4th-order convergence | ✅ |
+| V4 | FFT Poisson 1-D vs analytic (spectral) | ✅ |
+| V5 | cold PIC oscillation at ω_pe | ✅ |
+| V6 | Landau damping rate | ✅ |
+| V7 | two-stream growth rate | ✅ |
+| V10 | FFT Poisson 2-D vs analytic | ✅ |
 | V11 | Biot–Savart loop vs analytic on-axis field | ✅ |
 | V13 | field-line tracing → ι; flux surfaces close | ✅ |
 | others | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
@@ -36,3 +41,5 @@ tests** of its contract and edge cases:
 - `test_integrators.py` — RK4 convergence order + exactness on a constant RHS.
 - `test_diagnostics.py` — field-line tracing stays on flux surfaces; ι is
   radius-independent for a shearless profile.
+- `test_solvers.py` — spectral Poisson exactness (1-D & 2-D), E = -∇φ, zero-mean gauge.
+- `test_pic.py` — CIC charge conservation, partition of unity, linear exactness; loaders.

@@ -66,6 +66,22 @@ def poincare_section(B_func, x0, period, n_crossings, ds=0.01, axis=2,
     return np.array(crossings)
 
 
+def dominant_frequency(signal, dt):
+    """Angular frequency of the dominant spectral peak of a real time series.
+
+    Windows with a Hann taper to cut spectral leakage, drops the DC bin, and
+    returns the peak ω = 2π f. Used to read oscillation frequencies out of PIC
+    field histories (e.g. ω_pe, wave dispersion).
+    """
+    sig = np.asarray(signal, dtype=float)
+    sig = sig - sig.mean()
+    n = sig.size
+    spectrum = np.abs(np.fft.rfft(sig * np.hanning(n)))
+    freqs = 2.0 * np.pi * np.fft.rfftfreq(n, dt)
+    k = 1 + int(np.argmax(spectrum[1:]))      # skip DC
+    return freqs[k]
+
+
 def rotational_transform(crossings, axis=2):
     """Rotational transform ι from a sequence of Poincaré crossings.
 

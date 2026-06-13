@@ -1,7 +1,8 @@
 # 03 — 1-D Particle-in-Cell — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. The first *self-consistent, many-particle* experiment.
+> **Status:** F1 + F2 implemented (`run.py`) — cold ω_pe oscillation, Landau damping,
+> two-stream instability. F3 (EM/nonlinear) next.
 
 ## The question
 
@@ -34,7 +35,7 @@ Concept of a distribution function f(x, v).
 - **Validation:** reference; the F1–F2 sims are judged against these.
 - **Compute:** instant.
 
-### F1 — Cold electrostatic PIC (the machine)
+### F1 — Cold electrostatic PIC (the machine)  ✅ implemented
 - **Models:** 1D1V electrostatic PIC loop — weight particles to grid → solve Poisson (FFT) → interpolate field → push (leapfrog). Cold plasma slab oscillating at ω_pe.
 - **Assumes:** 1 spatial + 1 velocity dimension, electrostatic, cold (no thermal spread), immobile ions.
 - **Method & tools:** NumPy + FFT Poisson solve; CIC (cloud-in-cell) weighting; this is the reusable PIC core.
@@ -42,7 +43,7 @@ Concept of a distribution function f(x, v).
 - **Validation:** measured oscillation frequency = ω_pe to a few %; total energy bounded; require dx < λ_D to avoid grid heating.
 - **Compute:** seconds; 10⁴–10⁵ particles, single core (numba optional).
 
-### F2 — Warm plasma: Landau damping & two-stream
+### F2 — Warm plasma: Landau damping & two-stream  ✅ implemented
 - **Models:** Maxwellian electrons → collisionless Landau damping of a Langmuir wave; two counter-streaming beams → two-stream instability that grows then saturates by particle trapping.
 - **Assumes:** still 1D1V electrostatic; now a real velocity distribution.
 - **Method & tools:** the F1 core + Maxwellian/two-beam loaders; diagnostics on mode energy vs. time and the v–x phase space.

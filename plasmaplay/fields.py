@@ -68,6 +68,21 @@ def magnetic_mirror(B0: float = 1.0, mirror_ratio: float = 2.0, length: float = 
     return field
 
 
+def gradient_B(B0: float = 1.0, L: float = 1.0):
+    """Straight field with a transverse gradient: B = B0 (1 + x/L) ẑ.
+
+    |B| increases in +x, so a gyrating particle feels a grad-B drift
+    v_∇B = (m v⊥²/2qB) (b̂×∇B)/B in ±y (sign set by charge). The simplest field
+    for isolating the grad-B drift (the field line is straight, so there is no
+    curvature drift).
+    """
+    def field(position):
+        x, y, z = position
+        return np.array([0.0, 0.0, B0 * (1.0 + x / L)])
+
+    return field
+
+
 def screw_pinch(Bz: float = 1.0, twist: float = 0.2, b_theta=None):
     """Idealized 'straight stellarator' / screw-pinch field.
 

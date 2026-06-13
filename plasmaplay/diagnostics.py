@@ -82,6 +82,24 @@ def dominant_frequency(signal, dt):
     return freqs[k]
 
 
+def omega_k_spectrum(field_xt, dx, dt):
+    """2-D FFT of a space-time field E(x, t) into the (k, ω) plane.
+
+    `field_xt` has shape (n_t, n_x). Returns (k, omega, power) with the spectrum
+    fftshifted so the axes run from negative to positive. The bright ridges of
+    `power` trace the dispersion relation ω(k) — overlay an analytic curve to see
+    a simulation reproduce theory (experiment 08 closes the loop with experiment
+    03's PIC fields this way).
+    """
+    field_xt = np.asarray(field_xt, dtype=float)
+    n_t, n_x = field_xt.shape
+    F = np.fft.fftshift(np.fft.fft2(field_xt))
+    power = np.abs(F) ** 2
+    k = np.fft.fftshift(2.0 * np.pi * np.fft.fftfreq(n_x, d=dx))
+    omega = np.fft.fftshift(2.0 * np.pi * np.fft.fftfreq(n_t, d=dt))
+    return k, omega, power
+
+
 def rotational_transform(crossings, axis=2):
     """Rotational transform ι from a sequence of Poincaré crossings.
 

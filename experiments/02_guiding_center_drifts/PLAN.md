@@ -1,7 +1,8 @@
 # 02 — Guiding-center drifts — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. Builds directly on experiment 01.
+> **Status:** F1 + F2 implemented (`run.py`) — GC drifts, GC-vs-orbit overlay,
+> adiabaticity (r_L/L) error sweep. F3 (tokamak banana orbits) next.
 
 ## The question
 
@@ -32,7 +33,7 @@ Experiment 01 (at least F1; ideally F2). Concept of an adiabatic invariant helps
 - **Validation:** reference values for a chosen field configuration.
 - **Compute:** instant.
 
-### F1 — Integrate the guiding-center equations
+### F1 — Integrate the guiding-center equations  ✅ implemented
 - **Models:** the guiding-center equations of motion (drift velocity + parallel acceleration along B) in prescribed analytic fields.
 - **Assumes:** adiabatic (μ conserved); prescribed fields.
 - **Method & tools:** NumPy ODE integration (RK4 is fine here — no fast gyration to conserve); a new `guiding_center.py` integrator.
@@ -40,7 +41,7 @@ Experiment 01 (at least F1; ideally F2). Concept of an adiabatic invariant helps
 - **Validation:** computed drift velocity matches the F0 formulas in a controlled field gradient.
 - **Compute:** seconds.
 
-### F2 — Guiding-center vs. full orbit (the payoff)
+### F2 — Guiding-center vs. full orbit (the payoff)  ✅ implemented
 - **Models:** run the full Boris orbit from experiment 01 and the guiding-center orbit in the *same* non-uniform field; overlay them.
 - **Assumes:** adiabatic regime, but now you measure the error as you leave it.
 - **Method & tools:** reuse `pushers.boris_push` + the F1 integrator; sweep the adiabaticity parameter r_L/L.

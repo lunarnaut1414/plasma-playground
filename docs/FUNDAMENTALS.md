@@ -34,8 +34,8 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 | **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ✅ done |
 | **Distribution loaders** (Maxwellian, two-beam) | `pic.py` | 03 | ✅ done |
 | **Collision operator** (Monte-Carlo pitch-angle) | `collisions.py` *(new)* | 01, 02 | ☐ |
-| **Plasma dispersion function** Z(ζ) | `dispersion.py` *(new)* | 08 | ☐ |
-| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` | 03, 05, 06, 08 | ◐ Poincaré, ι, dominant-frequency done; ω–k pending |
+| **Plasma dispersion function** Z(ζ) | `dispersion.py` | 08 | ✅ done |
+| **Spectral diagnostics** (ω–k FFT, Poincaré section) | `diagnostics.py` | 03, 05, 06, 08 | ✅ done (Poincaré, ι, dominant-freq, ω–k) |
 | **Conservation monitors** (energy, μ, ∇·B) | `diagnostics.py` *(new)* | all | ☐ |
 
 Design conventions these must follow (so they compose):
@@ -82,8 +82,9 @@ plot-producing version in the relevant experiment.
 - **V8 · 1-D shock tubes** *(✅ in `tests/test_fvm.py`)* — finite-volume MHD on Sod
   (hydro, exact star values p*=0.30313), an exact Alfvén wave (speed v_A, amplitude
   preserved), and **Brio–Wu** (positivity, conservation, By sign reversal).
-- **V9 · Kinetic dispersion** — Z(ζ) root-find gives Bohm–Gross frequency **and**
-  Landau damping. *Pass: matches `plasmapy.dispersion` and V6.*
+- **V9 · Kinetic dispersion** *(✅ in `tests/test_dispersion.py`)* — Z(ζ) root-find gives
+  the frequency **and** Landau damping. *Pass: matches the literature benchmarks
+  (kλ_D=0.5 → 1.4156, −0.1533) and PlasmaPy's Z.*
 
 ### Tier 2 — 2-D / field kernels
 
@@ -99,8 +100,9 @@ plot-producing version in the relevant experiment.
   surfaces close (punctures at constant radius).*
 - **V14 · Orszag–Tang** — 2-D MHD vortex. *Pass: density/pressure structure matches the
   canonical reference; **∇·B stays at round-off** (the real test of the CT scheme).*
-- **V15 · ω–k recovery** — FFT field data from V5/V6/V8 runs into the ω–k plane.
-  *Pass: power ridge falls on the analytic dispersion curve (closes the loop to exp 08).*
+- **V15 · ω–k recovery** *(✅ in `tests/test_dispersion.py`)* — 2-D FFT of a space-time
+  field into the ω–k plane. *Pass: recovers a known plane wave's (k, ω); in exp 08
+  the PIC's Langmuir ridge falls on the analytic curve.*
 
 ---
 
@@ -113,7 +115,7 @@ A path that makes each step usable immediately and keeps you on already-tested g
 3. ✅ **`solvers.py` Poisson (V4, V10)** + **`pic.py` weighting/loaders** — unlocked the whole PIC experiment 03 (V5 → V6 → V7).
 4. ✅ **`solvers.py` elliptic + V12** — unlocked tokamak equilibrium (experiment 04).
 5. ◐ **`fvm.py` 1-D (V8)** ✅ → **2-D + ∇·B (V14)** ← here — unlocks MHD (06) ✅ and the space drive (07).
-6. **`dispersion.py` + Z (V9)** and **ω–k diagnostic (V15)** — unlocks experiment 08 and ties the kinetic/fluid pictures together.
+6. ✅ **`dispersion.py` + Z (V9)** and **ω–k diagnostic (V15)** — unlocked experiment 08 and tied the kinetic/fluid pictures together.
 
 Kernels 1–3 are pure NumPy/SciPy, **seconds on one core**. Steps 5–6 are where
 `numba` and the 96 GB RAM start to earn their keep (see per-experiment compute notes).

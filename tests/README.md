@@ -25,11 +25,13 @@ installed.
 | V6 | Landau damping rate | ✅ |
 | V7 | two-stream growth rate | ✅ |
 | V8 | 1-D MHD: Sod, Alfvén wave, Brio–Wu | ✅ |
+| V9 | kinetic Langmuir dispersion + Landau damping | ✅ |
 | V10 | FFT Poisson 2-D vs analytic | ✅ |
 | V11 | Biot–Savart loop vs analytic on-axis field | ✅ |
 | V12 | Grad–Shafranov Δ* solver, 2nd-order convergence | ✅ |
 | V13 | field-line tracing → ι; flux surfaces close | ✅ |
-| others | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
+| V15 | ω–k FFT recovers a plane wave (PIC dispersion) | ✅ |
+| V14 | 2-D Orszag–Tang + ∇·B (the remaining one) | ☐ |
 
 Beyond the physics-validation V-tests, each step-1 module also has **unit-level
 tests** of its contract and edge cases:
@@ -47,3 +49,5 @@ tests** of its contract and edge cases:
 - `test_pic.py` — CIC charge conservation, partition of unity, linear exactness; loaders.
 - `test_fvm.py` — MHD prim/cons round-trip, uniform-state steadiness, fast-speed sound limit.
 - `test_propulsion.py` — MPD T∝I²; channel impulse-momentum & energy balance (exact).
+- `test_guiding_center.py` — E×B & grad-B drifts; GC matches gyro-averaged orbit.
+- `test_dispersion.py` — kinetic Langmuir ω & γ; Z(ζ) vs PlasmaPy; ω–k recovery.

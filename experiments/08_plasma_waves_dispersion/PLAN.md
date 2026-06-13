@@ -1,7 +1,8 @@
 # 08 — Plasma waves & dispersion — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. Ties the whole playground together — the "spectroscopy" of plasma.
+> **Status:** F2 + F3 implemented (`run.py`) — kinetic Langmuir dispersion +
+> Landau damping, and ω–k measured from a PIC run. Ties the playground together.
 
 ## The question
 
@@ -42,7 +43,7 @@ The cold-plasma F0 of experiment 03 overlaps here.
 - **Validation:** curves pass through the F0 cutoffs/resonances at the right frequencies.
 - **Compute:** seconds.
 
-### F2 — Kinetic dispersion (Landau damping built in)
+### F2 — Kinetic dispersion (Landau damping built in)  ✅ implemented
 - **Models:** solve the *kinetic* (Vlasov) dispersion relation using the plasma dispersion function Z(ζ); get complex ω → real frequency **and** Landau damping rate.
 - **Assumes:** Maxwellian, linear; unmagnetized or magnetized depending on how far you push.
 - **Method & tools:** SciPy + `scipy.special.wofz` for Z(ζ); complex root-finding; PlasmaPy's kinetic dispersion solvers as a check.
@@ -50,7 +51,7 @@ The cold-plasma F0 of experiment 03 overlaps here.
 - **Validation:** Im(ω) matches the experiment-03 F0 Landau rate; Re(ω) matches Bohm–Gross.
 - **Compute:** seconds.
 
-### F3 — Measure dispersion from a simulation
+### F3 — Measure dispersion from a simulation  ✅ implemented
 - **Models:** take field data E(x, t) from your experiment-03 PIC (or experiment-06 MHD) run, 2-D FFT it to the ω–k plane, and watch the dispersion relation light up as a ridge of power.
 - **Assumes:** the simulation already ran; this is post-processing.
 - **Method & tools:** NumPy 2-D FFT; overlay the F1/F2 analytic curves on the simulated ω–k power spectrum.

@@ -38,6 +38,10 @@ def test_exp01_single_particle_runs():
     _load("01_single_particle_motion").main(save=False)
 
 
+def test_exp02_guiding_center_runs():
+    _load("02_guiding_center_drifts").main(save=False, case="drifts")
+
+
 def test_exp04_tokamak_runs():
     # small grid keeps the sparse GS solve quick
     _load("04_tokamak_equilibrium").main(save=False, n=31)
@@ -74,3 +78,11 @@ def test_exp07_drive_scaling_runs():
 
 def test_exp07_drive_channel_runs():
     _load("07_mhd_space_drive").run_channel(save=False)
+
+
+def test_exp08_dispersion_kinetic_runs():
+    _load("08_plasma_waves_dispersion").run_kinetic(save=False)
+
+
+def test_exp08_dispersion_pic_runs():
+    _load("08_plasma_waves_dispersion").run_pic(save=False, n_particles=5000, n_steps=60)

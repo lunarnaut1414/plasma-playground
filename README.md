@@ -67,11 +67,24 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 
-**Going further:** [`docs/3D_TOKAMAK_GUIDE.md`](docs/3D_TOKAMAK_GUIDE.md) lays out a
-laptop-reachable path from the experiment-04 equilibrium to a **3-D tokamak**
-playground — 3-D field, banana orbits, q-profile, magnetic islands — reusing the
-kernels you already have, with honest scope boundaries on where research codes
-(JOREK / GENE / XGC) take over.
+### The 3-D tokamak ladder (T0 → T4) ✅ built
+
+[`docs/3D_TOKAMAK_GUIDE.md`](docs/3D_TOKAMAK_GUIDE.md) lays out a laptop-reachable
+path from the experiment-04 equilibrium to a **3-D tokamak** playground. The whole
+ladder is now built and validated (`plasmaplay/tokamak.py`, `plasmaplay/tearing.py`,
+`tokamak_t{0..4}_viz.py`, `tests/test_tokamak.py` + `tests/test_tearing.py`):
+
+| Rung | What it shows | Validation | Memo |
+|------|---------------|------------|------|
+| T0 | 3-D equilibrium B-field from ψ(R,Z) | ∇·B≈0, \|B\|∝1/R, axis purely toroidal | (in `tokamak.py`) |
+| T1 | field-line topology: Poincaré + q-profile | q matches large-aspect analytic; nested surfaces | [T1](docs/T1_QPROFILE_POINCARE.md) |
+| T2 | banana orbits, trapping, μ invariant | trapped fraction √(2ε/(1+ε)); μ steady to 0.1% | [T2](docs/T2_BANANA_ORBITS.md) |
+| T3 | magnetic islands & stochasticity (real 3-D) | island at q=m/n; W∝√δ; ∇·B kept ~1e-6 | [T3](docs/T3_MAGNETIC_ISLANDS.md) |
+| T4 | linear resistive tearing mode (reduced MHD) | exact analytic Δ'; γ∝S^(−3/5) (slope −0.605) | [T4](docs/T4_TEARING_MODE.md) |
+
+Honest scope boundaries (nonlinear/turbulent/whole-device) and where research
+codes (JOREK / GENE / XGC) take over are spelled out in the guide. Run any rung's
+figure with e.g. `MPLBACKEND=Agg python tokamak_t1_viz.py`.
 
 ## The open-source plasma stack (what's out there)
 

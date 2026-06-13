@@ -1,7 +1,8 @@
 # 07 — MHD drive for space propulsion — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. The "why I started this repo" experiment. Builds on 06.
+> **Status:** F0 + F1 implemented (`run.py`) — Maecker T∝I² scaling, applied-field
+> channel accelerator (thrust = B₀IL). F2 (self-consistent resistive MHD) next.
 
 ## The question
 
@@ -27,7 +28,7 @@ the magnetic-nozzle detachment question.
 
 ## Fidelity ladder
 
-### F0 — Analytic / scoping
+### F0 — Analytic / scoping  ✅ implemented
 - **Models:** thrust from J×B; the self-field MPD scaling (Maecker formula) T ≈ (μ₀/4π) I² [ln(r_a/r_c) + ¾]; exhaust velocity, Isp = v_e/g₀, input power, and thrust efficiency.
 - **Assumes:** lumped 0-D; current I and geometry prescribed.
 - **Method & tools:** arithmetic; the rocket equation.
@@ -35,7 +36,7 @@ the magnetic-nozzle detachment question.
 - **Validation:** reproduce published MPD thrust/power numbers (e.g. ~N-class thrust at ~MW) within a factor.
 - **Compute:** instant.
 
-### F1 — 1-D channel acceleration model
+### F1 — 1-D channel acceleration model  ✅ implemented
 - **Models:** a 1-D plasma flow through a channel with prescribed current density J and magnetic field B; integrate the J×B acceleration to get the exit velocity and thrust.
 - **Assumes:** prescribed (non-self-consistent) J and B; quasi-1-D, steady, single fluid.
 - **Method & tools:** NumPy ODE/quadrature along the channel.

@@ -46,3 +46,4 @@ tests** of its contract and edge cases:
 - `test_solvers.py` — spectral Poisson exactness (1-D & 2-D), E = -∇φ, zero-mean gauge.
 - `test_pic.py` — CIC charge conservation, partition of unity, linear exactness; loaders.
 - `test_fvm.py` — MHD prim/cons round-trip, uniform-state steadiness, fast-speed sound limit.
+- `test_propulsion.py` — MPD T∝I²; channel impulse-momentum & energy balance (exact).

@@ -66,3 +66,11 @@ def test_exp06_mhd_briowu_runs():
 
 def test_exp06_mhd_alfven_runs():
     _load("06_ideal_mhd").run_alfven(save=False, n=64, t=0.05)
+
+
+def test_exp07_drive_scaling_runs():
+    _load("07_mhd_space_drive").run_scaling(save=False)
+
+
+def test_exp07_drive_channel_runs():
+    _load("07_mhd_space_drive").run_channel(save=False)

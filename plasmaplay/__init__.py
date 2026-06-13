@@ -6,11 +6,11 @@ analytic magnetic-field models, particle pushers, and plotting conveniences.
 
 from . import (
     constants, fields, pushers, plotting, integrators, diagnostics, solvers, pic,
-    fvm,
+    fvm, propulsion,
 )
 
 __all__ = [
     "constants", "fields", "pushers", "plotting", "integrators", "diagnostics",
-    "solvers", "pic", "fvm",
+    "solvers", "pic", "fvm", "propulsion",
 ]
 __version__ = "0.1.0"

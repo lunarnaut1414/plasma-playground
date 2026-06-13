@@ -72,6 +72,69 @@ def test_alfven_speed_reference():
     assert math.isclose(k.alfven_speed(1.0, 1.0e19), 6.9e6, rel_tol=2e-2)
 
 
+# --- 2b. Unit-level behavior: aliases, scaling laws, cross-relations ------
+
+def test_constant_aliases():
+    assert k.e == k.ELEMENTARY_CHARGE
+    assert k.c == k.SPEED_OF_LIGHT
+    assert k.m_e == k.ELECTRON_MASS
+    assert k.m_p == k.PROTON_MASS
+    assert k.m_p > k.m_e        # protons are heavier (sanity)
+
+
+def test_gyrofrequency_scalings():
+    f1 = k.gyrofrequency(k.e, 1.0, k.m_e)
+    assert math.isclose(k.gyrofrequency(k.e, 2.0, k.m_e), 2 * f1)   # linear in B
+    assert math.isclose(k.gyrofrequency(k.e, 1.0, 2 * k.m_e), f1 / 2)  # inverse in m
+
+
+def test_gyrofrequency_charge_sign_independent():
+    # uses |q|, so electrons and positrons share a gyrofrequency
+    assert k.gyrofrequency(k.e, 1.0, k.m_e) == k.gyrofrequency(-k.e, 1.0, k.m_e)
+
+
+def test_gyroradius_scalings_and_charge_sign():
+    r1 = k.gyroradius(1.0e5, k.e, 1.0, k.m_p)
+    assert math.isclose(k.gyroradius(2.0e5, k.e, 1.0, k.m_p), 2 * r1)   # linear in v
+    assert math.isclose(k.gyroradius(1.0e5, k.e, 2.0, k.m_p), r1 / 2)   # inverse in B
+    assert k.gyroradius(1.0e5, -k.e, 1.0, k.m_p) == r1                  # |q|
+
+
+def test_gyroradius_equals_vperp_over_gyrofrequency():
+    v_perp = 3.0e5
+    r_L = k.gyroradius(v_perp, k.e, 1.0, k.m_p)
+    omega_c = k.gyrofrequency(k.e, 1.0, k.m_p)
+    assert math.isclose(r_L, v_perp / omega_c, rel_tol=1e-12)
+
+
+def test_plasma_frequency_scaling_and_species():
+    f1 = k.plasma_frequency(1.0e18)
+    assert math.isclose(k.plasma_frequency(4.0e18), 2 * f1)            # sqrt(n)
+    # ion plasma frequency is smaller by sqrt(m_e/m_p)
+    f_ion = k.plasma_frequency(1.0e18, charge=k.e, mass=k.m_p)
+    assert math.isclose(f_ion / f1, math.sqrt(k.m_e / k.m_p), rel_tol=1e-12)
+
+
+def test_debye_length_scalings():
+    d1 = k.debye_length(1.0, 1.0e18)
+    assert math.isclose(k.debye_length(4.0, 1.0e18), 2 * d1)          # sqrt(T)
+    assert math.isclose(k.debye_length(1.0, 4.0e18), d1 / 2)          # 1/sqrt(n)
+
+
+def test_alfven_speed_scalings():
+    a1 = k.alfven_speed(1.0, 1.0e19)
+    assert math.isclose(k.alfven_speed(2.0, 1.0e19), 2 * a1)          # linear in B
+    assert math.isclose(k.alfven_speed(1.0, 4.0e19), a1 / 2)          # 1/sqrt(n)
+
+
+def test_debye_thermal_plasmafreq_relation():
+    # lambda_D = v_th / (sqrt(2) * omega_pe) for a single Maxwellian species
+    n, T_eV = 1.0e18, 5.0
+    lhs = k.debye_length(T_eV, n)
+    rhs = k.thermal_velocity(T_eV, k.m_e) / (math.sqrt(2) * k.plasma_frequency(n))
+    assert math.isclose(lhs, rhs, rel_tol=1e-12)
+
+
 # --- 3. Optional cross-check vs PlasmaPy ----------------------------------
 
 def test_against_plasmapy():

@@ -20,3 +20,13 @@ installed.
 | V1 | Boris pusher energy conservation + gyroradius | ✅ |
 | V2 | E×B drift = E/B | ✅ |
 | V3–V15 | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
+
+Beyond the physics-validation V-tests, each step-1 module also has **unit-level
+tests** of its contract and edge cases:
+
+- `test_constants.py` — aliases, scaling laws (ω_c∝B, λ_D∝√T, …), and
+  cross-relations (e.g. λ_D = v_th / (√2 ω_pe)).
+- `test_fields.py` — field factories return constant (3,) vectors; the magnetic
+  mirror's on-axis profile, symmetry, inward radial field, and **∇·B = 0**.
+- `test_pushers.py` — output shapes, zero-field straight-line motion, pure-E
+  uniform acceleration, charge-sign reversal, one-period return, list/array parity.

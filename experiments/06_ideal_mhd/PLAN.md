@@ -1,7 +1,8 @@
 # 06 — Ideal MHD basics — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. The fluid view of plasma — prerequisite for the space drive (07).
+> **Status:** F1 + F2 implemented (`run.py`) — Alfvén wave at v_A, Brio–Wu shock tube.
+> F3 (2-D Orszag–Tang + ∇·B) next. Prerequisite for the space drive (07).
 
 ## The question
 
@@ -33,7 +34,7 @@ CFL condition). Vector calculus. No particle background needed.
 - **Validation:** reference speeds for the F1/F2 solvers to reproduce.
 - **Compute:** instant.
 
-### F1 — Linear waves in 1-D
+### F1 — Linear waves in 1-D  ✅ implemented (Alfvén wave)
 - **Models:** linearize the ideal MHD equations about a uniform background; launch a small perturbation and watch an Alfvén / magnetosonic wave propagate.
 - **Assumes:** small-amplitude (linear), 1-D.
 - **Method & tools:** NumPy; a simple linear-advection / wave-equation integrator.
@@ -41,7 +42,7 @@ CFL condition). Vector calculus. No particle background needed.
 - **Validation:** measured propagation speed = F0 Alfvén/magnetosonic speed.
 - **Compute:** seconds.
 
-### F2 — Nonlinear 1-D MHD: the Brio–Wu shock tube
+### F2 — Nonlinear 1-D MHD: the Brio–Wu shock tube  ✅ implemented
 - **Models:** full nonlinear ideal MHD conservation laws in 1-D; the Brio–Wu shock tube (the MHD analogue of Sod's tube) producing shocks, rarefactions, and a compound wave.
 - **Assumes:** 1-D (so ∇·B = 0 is automatic); ideal (no resistivity); finite-volume discretization.
 - **Method & tools:** NumPy finite-volume solver with an approximate Riemann solver (HLL/HLLD) or Lax–Friedrichs; `numba` for speed.

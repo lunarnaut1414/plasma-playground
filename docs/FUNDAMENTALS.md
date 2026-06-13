@@ -29,8 +29,8 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 | **Grid ↔ particle weighting** (CIC deposit/interpolate) | `pic.py` | 03 | ✅ done |
 | **FFT Poisson solver** (1-D & 2-D periodic) | `solvers.py` | 03 | ✅ done |
 | **Finite-difference elliptic solver** (Laplacian / Grad–Shafranov Δ*) | `solvers.py` | 04 | ✅ done |
-| **Finite-volume hyperbolic solver** (1-D → 2-D, Riemann) | `fvm.py` *(new)* | 06, 07 | ☐ |
-| **∇·B control** (constrained transport / cleaning) | `fvm.py` *(new)* | 06, 07 | ☐ |
+| **Finite-volume hyperbolic solver** (1-D → 2-D, Riemann) | `fvm.py` | 06, 07 | ◐ 1-D done (HLL+MUSCL); 2-D pending |
+| **∇·B control** (constrained transport / cleaning) | `fvm.py` | 06, 07 | ☐ (needed for 2-D) |
 | **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ✅ done |
 | **Distribution loaders** (Maxwellian, two-beam) | `pic.py` | 03 | ✅ done |
 | **Collision operator** (Monte-Carlo pitch-angle) | `collisions.py` *(new)* | 01, 02 | ☐ |
@@ -79,8 +79,9 @@ plot-producing version in the relevant experiment.
 - **V7 · Two-stream growth rate** *(✅ in `tests/test_pic_landau.py`)* — counter-streaming
   beams. *Pass: linear growth rate matches the cold-dispersion root within ~30%
   (theory 0.353, measured ≈ 0.32); plus marginal-stability checks.*
-- **V8 · 1-D shock tubes** — finite-volume solver on Sod (hydro sanity) then **Brio–Wu**
-  (MHD). *Pass: profiles overlay the published reference at the standard output time.*
+- **V8 · 1-D shock tubes** *(✅ in `tests/test_fvm.py`)* — finite-volume MHD on Sod
+  (hydro, exact star values p*=0.30313), an exact Alfvén wave (speed v_A, amplitude
+  preserved), and **Brio–Wu** (positivity, conservation, By sign reversal).
 - **V9 · Kinetic dispersion** — Z(ζ) root-find gives Bohm–Gross frequency **and**
   Landau damping. *Pass: matches `plasmapy.dispersion` and V6.*
 
@@ -111,7 +112,7 @@ A path that makes each step usable immediately and keeps you on already-tested g
 2. ✅ **`integrators.py` + V3**, then **Biot–Savart + V11** — unlocked experiment 05 field-line tracing (V13). (Guiding-center / experiment 02 still to do.)
 3. ✅ **`solvers.py` Poisson (V4, V10)** + **`pic.py` weighting/loaders** — unlocked the whole PIC experiment 03 (V5 → V6 → V7).
 4. ✅ **`solvers.py` elliptic + V12** — unlocked tokamak equilibrium (experiment 04).
-5. **`fvm.py` 1-D (V8)** → **2-D + ∇·B (V14)** — unlocks MHD (06) and the space drive (07). ← next
+5. ◐ **`fvm.py` 1-D (V8)** ✅ → **2-D + ∇·B (V14)** ← here — unlocks MHD (06) ✅ and the space drive (07).
 6. **`dispersion.py` + Z (V9)** and **ω–k diagnostic (V15)** — unlocks experiment 08 and ties the kinetic/fluid pictures together.
 
 Kernels 1–3 are pure NumPy/SciPy, **seconds on one core**. Steps 5–6 are where

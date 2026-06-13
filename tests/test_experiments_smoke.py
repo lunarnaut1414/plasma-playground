@@ -58,3 +58,11 @@ def test_exp03_landau_runs():
 
 def test_exp03_twostream_runs():
     _load("03_pic_1d").run_twostream(save=False, n_particles=4000, n_steps=320)
+
+
+def test_exp06_mhd_briowu_runs():
+    _load("06_ideal_mhd").run_briowu(save=False, n=120, t=0.02)
+
+
+def test_exp06_mhd_alfven_runs():
+    _load("06_ideal_mhd").run_alfven(save=False, n=64, t=0.05)

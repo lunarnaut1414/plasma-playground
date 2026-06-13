@@ -24,6 +24,7 @@ installed.
 | V5 | cold PIC oscillation at ω_pe | ✅ |
 | V6 | Landau damping rate | ✅ |
 | V7 | two-stream growth rate | ✅ |
+| V8 | 1-D MHD: Sod, Alfvén wave, Brio–Wu | ✅ |
 | V10 | FFT Poisson 2-D vs analytic | ✅ |
 | V11 | Biot–Savart loop vs analytic on-axis field | ✅ |
 | V12 | Grad–Shafranov Δ* solver, 2nd-order convergence | ✅ |
@@ -44,3 +45,4 @@ tests** of its contract and edge cases:
   radius-independent for a shearless profile.
 - `test_solvers.py` — spectral Poisson exactness (1-D & 2-D), E = -∇φ, zero-mean gauge.
 - `test_pic.py` — CIC charge conservation, partition of unity, linear exactness; loaders.
+- `test_fvm.py` — MHD prim/cons round-trip, uniform-state steadiness, fast-speed sound limit.

@@ -22,7 +22,7 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 
 | Kernel | Lives in | Used by | Status |
 |--------|----------|---------|--------|
-| **Constants & formulary** (ω_c, r_L, ω_pe, λ_D, v_A) | `constants.py` | all | ✅ partial |
+| **Constants & formulary** (ω_c, r_L, ω_pe, λ_D, v_A) | `constants.py` | all | ✅ done |
 | **Analytic field models** (uniform, mirror, toroidal, coil) | `fields.py` | 01, 02, 05, 07 | ✅ partial |
 | **Boris pusher** (particle orbit) | `pushers.py` | 01, 02 | ✅ done |
 | **RK4 / ODE integrator** (field lines, guiding center) | `integrators.py` *(new)* | 02, 05 | ☐ |
@@ -55,8 +55,9 @@ plot-producing version in the relevant experiment.
 
 ### Tier 0 — analytic anchors (no simulation)
 
-- **V0 · Formulary** — `constants.py` outputs match `plasmapy.formulary` for ω_c,
-  r_L, ω_pe, λ_D, v_A at a few plasma parameters. *Pass: agree to < 1%.*
+- **V0 · Formulary** *(✅ in `tests/test_constants.py`)* — `constants.py` outputs match a
+  first-principles SI computation, canonical reference numbers, and (optionally)
+  `plasmapy.formulary` for ω_c, r_L, ω_pe, λ_D, v_A. *Pass: < 1% vs reference.*
 
 ### Tier 1 — 1-D / single-particle kernels
 

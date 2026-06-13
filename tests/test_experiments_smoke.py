@@ -38,6 +38,11 @@ def test_exp01_single_particle_runs():
     _load("01_single_particle_motion").main(save=False)
 
 
+def test_exp04_tokamak_runs():
+    # small grid keeps the sparse GS solve quick
+    _load("04_tokamak_equilibrium").main(save=False, n=31)
+
+
 def test_exp05_stellarator_runs():
     # reduced crossing counts keep the field-line tracing quick
     _load("05_stellarator_field_lines").main(save=False, n_crossings=5, profile_n=2)

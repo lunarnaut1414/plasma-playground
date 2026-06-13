@@ -1,7 +1,8 @@
 # 04 — Tokamak equilibrium — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** not started. First *device-scale* experiment — "I simulated a tokamak."
+> **Status:** F1 implemented (`run.py`) — Solov'ev equilibrium, flux surfaces, Shafranov
+> shift. F2 (free-boundary via FreeGS) next.
 
 ## The question
 
@@ -32,7 +33,7 @@ Basic MHD force balance (∇p = J×B) — a paragraph of experiment 06 F0 is eno
 - **Validation:** this *is* the reference for F1.
 - **Compute:** instant.
 
-### F1 — Fixed-boundary Grad–Shafranov solver
+### F1 — Fixed-boundary Grad–Shafranov solver  ✅ implemented
 - **Models:** solve the nonlinear GS PDE Δ*ψ = -μ₀R²p'(ψ) - FF'(ψ) inside a fixed boundary, with chosen pressure and current profiles.
 - **Assumes:** plasma boundary is *prescribed* (no external coils yet); axisymmetric.
 - **Method & tools:** finite-difference Δ* operator + sparse solve (`scipy.sparse`), Picard iteration on the nonlinearity.

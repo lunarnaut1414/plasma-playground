@@ -8,7 +8,12 @@ finite-difference solver would give.
 
 import numpy as np
 
-from plasmaplay.solvers import solve_efield_1d, solve_poisson_1d, solve_poisson_2d
+from plasmaplay.solvers import (
+    grad_shafranov_solve,
+    solve_efield_1d,
+    solve_poisson_1d,
+    solve_poisson_2d,
+)
 
 EPS = 1.0  # normalized units keep the test about the operator, not constants
 
@@ -76,3 +81,43 @@ def test_v10_single_mode_potential_2d():
         phi = solve_poisson_2d(rho, dx, dx, eps0=EPS)
         phi_exact = rho / (EPS * (kx**2 + ky**2))
         np.testing.assert_allclose(phi, phi_exact, atol=1e-12)
+
+
+# --- V12: Grad-Shafranov solver (method of manufactured solutions) --------
+
+# ψ = R^4 + Z^4 + R^2 Z^2 is an exact, smooth function whose Δ* is known:
+#   Δ*(R^4)   = 8 R^2,   Δ*(Z^4) = 12 Z^2,   Δ*(R^2 Z^2) = 2 R^2
+# so  Δ*ψ = 10 R^2 + 12 Z^2.  (A Solov'ev equilibrium is the physical instance
+# of the same idea; this manufactured solution checks the operator cleanly.)
+
+def _psi_exact(R, Z):
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    return RR**4 + ZZ**4 + RR**2 * ZZ**2
+
+
+def _gs_source(R, Z):
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    return 10.0 * RR**2 + 12.0 * ZZ**2
+
+
+def test_v12_grad_shafranov_manufactured_convergence():
+    def max_error(n):
+        R = np.linspace(1.0, 2.0, n)      # R > 0 (avoid the 1/R singularity)
+        Z = np.linspace(-1.0, 1.0, n)
+        exact = _psi_exact(R, Z)
+        psi = grad_shafranov_solve(R, Z, _gs_source(R, Z), boundary=exact)
+        return np.max(np.abs(psi - exact)), 1.0 / (n - 1)
+
+    errs, hs = zip(*[max_error(n) for n in (21, 41, 81)])
+    slope = np.polyfit(np.log(hs), np.log(errs), 1)[0]
+    assert 1.8 < slope < 2.2              # 2nd-order accurate Δ* discretization
+
+
+def test_v12_recovers_exact_solution_on_fine_grid():
+    n = 81
+    R = np.linspace(1.0, 2.0, n)
+    Z = np.linspace(-1.0, 1.0, n)
+    exact = _psi_exact(R, Z)
+    psi = grad_shafranov_solve(R, Z, _gs_source(R, Z), boundary=exact)
+    rel = np.max(np.abs(psi - exact)) / np.max(np.abs(exact))
+    assert rel < 1e-3

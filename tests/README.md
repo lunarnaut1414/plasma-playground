@@ -26,6 +26,7 @@ installed.
 | V7 | two-stream growth rate | ✅ |
 | V10 | FFT Poisson 2-D vs analytic | ✅ |
 | V11 | Biot–Savart loop vs analytic on-axis field | ✅ |
+| V12 | Grad–Shafranov Δ* solver, 2nd-order convergence | ✅ |
 | V13 | field-line tracing → ι; flux surfaces close | ✅ |
 | others | see FUNDAMENTALS.md (built alongside their experiments) | ☐ |
 

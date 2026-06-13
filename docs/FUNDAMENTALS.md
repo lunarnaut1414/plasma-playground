@@ -28,7 +28,7 @@ Ordered by how many experiments depend on them — build the high-leverage ones 
 | **RK4 / ODE integrator** (field lines, guiding center) | `integrators.py` | 02, 05 | ✅ done |
 | **Grid ↔ particle weighting** (CIC deposit/interpolate) | `pic.py` | 03 | ✅ done |
 | **FFT Poisson solver** (1-D & 2-D periodic) | `solvers.py` | 03 | ✅ done |
-| **Finite-difference elliptic solver** (Laplacian / Grad–Shafranov Δ*) | `solvers.py` *(new)* | 04 | ☐ |
+| **Finite-difference elliptic solver** (Laplacian / Grad–Shafranov Δ*) | `solvers.py` | 04 | ✅ done |
 | **Finite-volume hyperbolic solver** (1-D → 2-D, Riemann) | `fvm.py` *(new)* | 06, 07 | ☐ |
 | **∇·B control** (constrained transport / cleaning) | `fvm.py` *(new)* | 06, 07 | ☐ |
 | **Biot–Savart** (field from coil filaments) | `fields.py` | 05 | ✅ done |
@@ -90,9 +90,9 @@ plot-producing version in the relevant experiment.
   vs analytic φ. *Pass: round-off (spectral).*
 - **V11 · Biot–Savart loop** *(✅ in `tests/test_fields.py`)* — field of a single circular
   current loop vs the on-axis analytic formula B_z(0,0,z). *Pass: < 0.1% on axis.*
-- **V12 · Grad–Shafranov vs Solov'ev** — fixed-boundary GS solver with Solov'ev
-  profiles vs the closed-form ψ (exp 04 F1 vs F0). *Pass: L2 error → 0 with grid
-  refinement (2nd order).*
+- **V12 · Grad–Shafranov** *(✅ in `tests/test_solvers.py`)* — fixed-boundary Δ* solver
+  vs a manufactured exact solution (the Solov'ev idea). *Pass: 2nd-order convergence
+  (slope in (1.8, 2.2)); < 0.1% on a fine grid.*
 - **V13 · Field-line ι** *(✅ in `tests/test_diagnostics.py`)* — trace the screw-pinch
   field; Poincaré → rotational transform. *Pass: measured ι = analytic within 1%;
   surfaces close (punctures at constant radius).*
@@ -110,8 +110,8 @@ A path that makes each step usable immediately and keeps you on already-tested g
 1. ✅ **Finish Tier 0 + V1–V2** — formulary cross-check; Boris pusher locked in. *Foundation for 01/02.*
 2. ✅ **`integrators.py` + V3**, then **Biot–Savart + V11** — unlocked experiment 05 field-line tracing (V13). (Guiding-center / experiment 02 still to do.)
 3. ✅ **`solvers.py` Poisson (V4, V10)** + **`pic.py` weighting/loaders** — unlocked the whole PIC experiment 03 (V5 → V6 → V7).
-4. **`solvers.py` elliptic + V12** — unlocks tokamak equilibrium (experiment 04). ← next
-5. **`fvm.py` 1-D (V8)** → **2-D + ∇·B (V14)** — unlocks MHD (06) and the space drive (07).
+4. ✅ **`solvers.py` elliptic + V12** — unlocked tokamak equilibrium (experiment 04).
+5. **`fvm.py` 1-D (V8)** → **2-D + ∇·B (V14)** — unlocks MHD (06) and the space drive (07). ← next
 6. **`dispersion.py` + Z (V9)** and **ω–k diagnostic (V15)** — unlocks experiment 08 and ties the kinetic/fluid pictures together.
 
 Kernels 1–3 are pure NumPy/SciPy, **seconds on one core**. Steps 5–6 are where

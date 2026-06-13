@@ -67,6 +67,12 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 
+**Going further:** [`docs/3D_TOKAMAK_GUIDE.md`](docs/3D_TOKAMAK_GUIDE.md) lays out a
+laptop-reachable path from the experiment-04 equilibrium to a **3-D tokamak**
+playground — 3-D field, banana orbits, q-profile, magnetic islands — reusing the
+kernels you already have, with honest scope boundaries on where research codes
+(JOREK / GENE / XGC) take over.
+
 ## The open-source plasma stack (what's out there)
 
 - **[PlasmaPy](https://docs.plasmapy.org)** — formulary, particle tracking,

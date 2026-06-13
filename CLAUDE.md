@@ -15,6 +15,7 @@ on an Apple-Silicon Mac (M2 Max, 96 GB), single machine, mostly CPU.
 2. `docs/FIDELITY.md` — the **F0→F4 fidelity ladder** every experiment is organized around.
 3. `docs/FUNDAMENTALS.md` — the **shared kernels + validation test suite to build first** (the engineering plan).
 4. `experiments/NN_*/PLAN.md` — per-experiment fidelity ladder (what to build, in what order, how to validate each rung).
+5. `docs/3D_TOKAMAK_GUIDE.md` — cross-experiment roadmap toward a 3-D tokamak (T0–T4), reusing existing kernels.
 
 ## Layout
 

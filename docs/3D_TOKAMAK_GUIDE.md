@@ -84,7 +84,9 @@ pure reuse of `pushers.boris_push` + `guiding_center.gc_push`.*
 - **Validation:** trapped fraction ≈ √(2ε) (ε = r/R₀); banana width scales like q·ρ/√ε; passing particles stay (nearly) on a flux surface. μ conserved along the orbit.
 - **Compute:** seconds per orbit (Boris); guiding-center is cheaper for long times.
 
-### T3 — Break axisymmetry: magnetic islands & stochasticity (real 3-D)
+### T3 — Break axisymmetry: magnetic islands & stochasticity (real 3-D)  ✅ **done**
+*Built: `tokamak.py::{helical_perturbation, superpose}`, viz `tokamak_t3_viz.py`,
+memo [`T3_MAGNETIC_ISLANDS.md`](T3_MAGNETIC_ISLANDS.md).*
 - **Goal:** add a non-axisymmetric perturbation and watch flux surfaces tear into **magnetic islands** at rational (q = m/n) surfaces, then go **stochastic** when islands overlap.
 - **Build:** add a resonant helical perturbation to the T0 field, e.g. δB from
   `δψ = δ · cos(mθ − nφ)` (a divergence-free perturbation; simplest is a small

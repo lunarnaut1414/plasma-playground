@@ -128,6 +128,83 @@ def equilibrium_field(R, Z, psi, F_of_psi):
     return field
 
 
+def helical_perturbation(amplitude, m, n, axis_RZ, envelope=None, h=1e-5):
+    """A divergence-free resonant helical field perturbation δB (rung T3).
+
+    Breaking axisymmetry is what makes a tokamak field genuinely 3-D. We add a
+    helical perturbation through the **poloidal flux**, exactly as the equilibrium
+    field is built — which keeps ∇·B = 0 *identically*:
+
+        Ψ = ψ(R, Z) + δψ_h,   δψ_h = amplitude · env(r) · cos(m θ − n φ)
+        B = ∇Ψ × ∇φ + F ∇φ
+
+    because ∇·(∇Ψ × ∇φ) ≡ 0 for *any* scalar Ψ, even one that depends on φ. The
+    poloidal field from the flux is B_R = -(1/R)∂Ψ/∂Z, B_Z = (1/R)∂Ψ/∂R, and the
+    ∂Ψ/∂φ piece contributes nothing (it lands along φ̂ × φ̂ = 0). So the whole
+    perturbation is the two poloidal components of δψ_h:
+
+        δB_R = -(1/R) ∂δψ_h/∂Z,   δB_Z = (1/R) ∂δψ_h/∂R,   δB_φ = 0.
+
+    Here θ = atan2(Z − Z_axis, R − R_axis) is the geometric poloidal angle about
+    the magnetic axis and r the minor radius. The perturbation resonates — and
+    tears the flux surface into an **m-island chain** — only at the rational
+    surface q = m/n; its width scales like √(amplitude) (rung-T3 validation).
+
+    Parameters
+    ----------
+    amplitude : perturbation flux amplitude δ (same units as ψ). Island width ∝ √δ.
+    m, n : poloidal / toroidal mode numbers. Islands appear where q = m/n.
+    axis_RZ : (R_axis, Z_axis) of the magnetic axis (origin of the poloidal angle).
+    envelope : optional callable env(r) -> radial profile of the perturbation.
+        Default: a unit constant. Pass e.g. a Gaussian centred on the resonant
+        surface to localise a single island chain and avoid the 1/r blow-up of
+        ∂θ near the axis.
+    h : finite-difference step for the (R, Z) derivatives of δψ_h.
+
+    Returns
+    -------
+    dB : callable ``dB(position) -> (3,) ndarray`` — the Cartesian perturbation
+        field, to be *added* to the axisymmetric `equilibrium_field` (use
+        `superpose`). Divergence-free by construction.
+    """
+    R_ax, Z_ax = axis_RZ
+    env = envelope if envelope is not None else (lambda r: 1.0)
+
+    def dpsi_h(R, Z, phi):
+        r = np.hypot(R - R_ax, Z - Z_ax)
+        theta = np.arctan2(Z - Z_ax, R - R_ax)
+        return amplitude * env(r) * np.cos(m * theta - n * phi)
+
+    def dB(position):
+        x, y, z = position
+        R = np.hypot(x, y)
+        phi = np.arctan2(y, x)
+        # ∂δψ_h/∂R and ∂δψ_h/∂Z by centered differences at fixed φ
+        dR = (dpsi_h(R + h, z, phi) - dpsi_h(R - h, z, phi)) / (2 * h)
+        dZ = (dpsi_h(R, z + h, phi) - dpsi_h(R, z - h, phi)) / (2 * h)
+        dBR = -dZ / R
+        dBZ = dR / R
+        cos_p, sin_p = (x / R, y / R) if R > 0 else (1.0, 0.0)
+        return np.array([dBR * cos_p, dBR * sin_p, dBZ])   # δB_φ = 0
+
+    return dB
+
+
+def superpose(*fields):
+    """Combine field callables into one that returns their vector sum.
+
+    ``superpose(equilibrium_field(...), helical_perturbation(...))`` is the T3
+    field: axisymmetric equilibrium + resonant perturbation, still a valid
+    ``B(position) -> (3,)`` that drops into every tracer and pusher.
+    """
+    def combined(position):
+        total = np.zeros(3)
+        for f in fields:
+            total = total + np.asarray(f(position), dtype=float)
+        return total
+    return combined
+
+
 def to_cylindrical(position):
     """Cartesian (x, y, z) -> (R, φ, Z). φ in (-π, π]."""
     x, y, z = position

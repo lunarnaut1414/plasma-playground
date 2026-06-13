@@ -21,8 +21,10 @@ from plasmaplay.solvers import grad_shafranov_solve
 from plasmaplay.tokamak import (
     divergence,
     equilibrium_field,
+    helical_perturbation,
     safety_factor,
     solovev_F,
+    superpose,
     to_cartesian,
     to_cylindrical,
     toroidal_poincare,
@@ -325,3 +327,69 @@ def test_mu_is_adiabatic_invariant():
     vparr = np.einsum("ij,ij->i", vp, bh)
     mu = m_p * (np.sum(vp**2, axis=1) - vparr**2) / (2 * Bm)
     assert (mu.max() - mu.min()) / mu.mean() < 0.01         # μ steady to <1%
+
+
+# --- T3: break axisymmetry — magnetic islands & stochasticity ------------
+
+# A sheared circular equilibrium (Rc=5) tuned so q = 2 sits at minor radius
+# r = 0.5: an m/n = 2/1 helical perturbation is then resonant there and tears
+# the surface into a two-island chain. Aspect ratio 5 (not 10) keeps the field-
+# line traces fast — see docs/T3_MAGNETIC_ISLANDS.md.
+_T3_RC, _T3_Q0 = 5.0, 1.6
+_T3_AXIS = (_T3_RC, 0.0)
+def _T3_ENV(r):  # Gaussian envelope localising the perturbation at the resonance
+    return np.exp(-((r - 0.5) ** 2) / (2 * 0.3**2))
+
+
+def _t3_base_field(n=261):
+    R = np.linspace(_T3_RC - 1.15, _T3_RC + 1.15, n)
+    Z = np.linspace(-1.15, 1.15, n)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    psi = (1.0 * 1.0 / (2.0 * _T3_Q0)) * np.log1p(((RR - _T3_RC) ** 2 + ZZ ** 2) / 1.0)
+    return equilibrium_field(R, Z, psi, vacuum_F(_T3_RC, 1.0))
+
+
+def _island_width(base, delta, start, npunc=70, ds=0.07):
+    field = superpose(base, helical_perturbation(delta, 2, 1, _T3_AXIS, envelope=_T3_ENV))
+    pc = toroidal_poincare(field, start, n_punctures=npunc, ds=ds)
+    minor = np.hypot(pc[:, 0] - _T3_RC, pc[:, 1])
+    return minor.max() - minor.min(), pc
+
+
+def test_resonance_is_at_q_equals_m_over_n():
+    base = _t3_base_field()
+    q = abs(safety_factor(base, (_T3_RC + 0.5, 0.0), _T3_AXIS, n_poloidal=6, ds=0.06))
+    assert abs(q - 2.0) < 0.05                     # the q = m/n = 2 surface is at r ≈ 0.5
+
+
+def test_perturbation_stays_divergence_free():
+    # the helical perturbation is built from a flux, so ∇·B = 0 must survive it.
+    base = _t3_base_field()
+    field = superpose(base, helical_perturbation(2e-3, 2, 1, _T3_AXIS, envelope=_T3_ENV))
+    h = 2.0 * (1.15 * 2 / 260)
+    for r, phi, z in [(0.5, 0.0, 0.0), (0.45, 1.0, 0.1), (0.55, -2.0, -0.05)]:
+        BR = np.linalg.norm(field(to_cartesian(_T3_RC + r, phi, z)))
+        d = abs(divergence(field, to_cartesian(_T3_RC + r, phi, z), h=h))
+        assert d / BR < 1e-3                       # ∇·B ≪ |B|
+
+
+def test_island_opens_centered_on_the_resonant_surface():
+    # The 2/1 perturbation tears the q=2 surface into an island chain: a line
+    # started at its X-point fills a wide band *centred on r = 0.5* (where q=2),
+    # not somewhere else. An unperturbed surface there would be a thin circle.
+    base = _t3_base_field()
+    W_res, pc = _island_width(base, 1e-3, (_T3_RC, 0.5))
+    minor = np.hypot(pc[:, 0] - _T3_RC, pc[:, 1])
+    assert W_res > 0.1                                          # a real, wide island
+    assert abs(minor.mean() - 0.5) < 0.06                      # straddles q=2 surface
+    # an irrational surface well inside stays a thin KAM curve (no island there)
+    W_off, _ = _island_width(base, 1e-3, (_T3_RC + 0.85, 0.0))
+    assert W_off < W_res                                        # resonance is the wide one
+
+
+def test_island_width_scales_as_sqrt_delta():
+    # W ∝ √(perturbation amplitude): quadrupling δ doubles the island width.
+    base = _t3_base_field()
+    W1, _ = _island_width(base, 5e-4, (_T3_RC, 0.5))
+    W4, _ = _island_width(base, 2e-3, (_T3_RC, 0.5))
+    assert 1.8 < W4 / W1 < 2.2                                  # √4 = 2

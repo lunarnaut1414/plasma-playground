@@ -168,6 +168,17 @@ def test_animate_operating_space_writes_gif(tmp_path):
     assert out.exists() and Image.open(out).n_frames == 8
 
 
+def test_animate_stellarator_3d_writes_gif(tmp_path):
+    """The two-panel stellarator burn (twisty torus + l=2 elliptical bullseye) animates a
+    full profile and writes a multi-frame gif."""
+    rho = np.linspace(0.0, 1.0, 12)
+    T_rt = np.array([(15.0 + 2.0 * k) * (1.0 - rho**2) + 0.5 for k in range(5)])
+    out = anim.animate_stellarator_3d(rho, T_rt, times=np.arange(5.0),
+                                      path=tmp_path / "stell.gif", fps=5, dpi=60,
+                                      n_u=40, n_v=18, n_s=16)
+    assert out.exists() and Image.open(out).n_frames == 5
+
+
 def test_animate_discharge_3d_writes_gif(tmp_path):
     """The two-panel 3-D discharge (glowing torus + bullseye T(rho)) animates a full
     profile, accepts a per-frame crash count, and writes a multi-frame gif."""

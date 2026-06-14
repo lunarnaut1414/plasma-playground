@@ -67,7 +67,7 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 | 09 | Burning plasma (transport) ✅ | ignition → steady burn → fuel injection; He-ash & β-limit; two-temperature Te/Ti; real D-shaped equilibrium; operating modes (L/H/disruption) | [plan](experiments/09_burning_plasma/PLAN.md) | numpy (ASTRA-like) |
 | 10 | Tokamak MHD stability ✅ | straight-tokamak linear stability (kink, tearing Δ′, FKR); reduced-MHD island + Rutherford saturation; Kadomtsev sawtooth crash | [plan](experiments/10_tokamak_stability/PLAN.md) | numpy / scipy |
 
-**Coupled discharge (Track C):** the transport burn (exp 09) and the MHD sawtooth (exp 10) run together — `python experiments/09_burning_plasma/run.py --mode coupled` fires m=1 crashes during the burn (staged two-timescale model), and `python gif_gallery.py tokamak_3d_discharge` renders it on the rotating 3-D torus (nested flux surfaces colored by T, sawteeth visible). See [docs/C1_COUPLED_DISCHARGE.md](docs/C1_COUPLED_DISCHARGE.md).
+**Coupled discharge (Track C):** the transport burn (exp 09) and the MHD sawtooth (exp 10) run together — `python experiments/09_burning_plasma/run.py --mode coupled` fires m=1 crashes during the burn (staged two-timescale model), and `python gif_gallery.py tokamak_3d_discharge` renders it on the rotating 3-D torus (a glowing donut colored by core T beside a poloidal T(ρ) bullseye, sawteeth flashing). See [docs/C1_COUPLED_DISCHARGE.md](docs/C1_COUPLED_DISCHARGE.md). Its stellarator counterpart, `python gif_gallery.py stellarator_3d_burn`, runs the *same* burn on a current-free device — a glowing twisty (l=2) torus + bean-shaped cross-section, steady-state with **zero** sawteeth (the core runs hotter for it).
 
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 

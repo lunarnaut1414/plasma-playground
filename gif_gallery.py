@@ -524,6 +524,22 @@ def _discharge_run(events):
     return np.array(ts), np.array(T0), np.array(frames), n_saw, sim.rho
 
 
+def stellarator_3d_burn():
+    """The stellarator analog of tokamak_3d_discharge: the SAME exp-09 transport burn on a
+    current-free stellarator, rendered as a glowing TWISTY torus (l=2 cross-section
+    rotating helically) beside its shaped (elliptical) T(rho) bullseye. Steady-state —
+    NO sawtooth crashes (no plasma current -> no q=1 kink). Reuses `_discharge_run`
+    (events=False) and `animate.animate_stellarator_3d`."""
+    ts, _T0, frames, n_saw, rho = _discharge_run(events=False)
+    print(f"  [stellarator_3d_burn] {n_saw} sawteeth (current-free); core T "
+          f"{frames[:, 0].min():.0f}-{frames[:, 0].max():.0f} keV over the discharge")
+    out = anim.animate_stellarator_3d(
+        rho, frames, ts, path=f"{OUT}/stellarator_3d_burn.gif", R0=3.0, a=1.0,
+        title="Stellarator discharge: steady burn, no sawteeth (current-free)",
+        vmax=float(frames.max()), fps=16, dpi=120)
+    print(f"  wrote {out}")
+
+
 def stellarator_burn():
     """E2 (the stellarator contrast): the SAME burning-plasma transport runs on a
     stellarator — but with no plasma current, q is set by the coils (q>1), so there is
@@ -647,6 +663,7 @@ GALLERY = {
     "tokamak_3d_discharge": tokamak_3d_discharge,
     "stellarator_flux_surfaces": stellarator_flux_surfaces,
     "stellarator_burn": stellarator_burn,
+    "stellarator_3d_burn": stellarator_3d_burn,
 }
 
 

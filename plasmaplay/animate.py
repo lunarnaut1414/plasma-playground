@@ -494,6 +494,98 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
     return out
 
 
+def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=0.30,
+                           n_periods=5, n_u=150, n_v=46, n_s=46, cmap="inferno",
+                           title="", fps=16, dpi=120, vmin=0.0, vmax=None, dark=True):
+    """Two-panel STELLARATOR burn: a glowing twisty torus beside its elliptical bullseye.
+
+    The stellarator analog of `animate_discharge_3d`. `rho` is the normalized minor-radius
+    grid (0..1); `T_rt` is (n_t, n_rho), the temperature profile over time. LEFT: a torus
+    whose l=2 elliptical cross-section ROTATES helically around the machine (the
+    current-free stellarator twist), the whole surface colored by the CORE temperature so
+    it brightens through the burn. RIGHT: the shaped (elliptical, l=2) poloidal
+    cross-section T(rho) as a filled bullseye. Unlike the tokamak there are NO sawtooth
+    crashes (no plasma current -> no q=1 kink): the burn is steady-state, flagged as such.
+    The helical shaping geometry is ILLUSTRATIVE (an l=2 envelope mapped onto a torus for
+    the render, as in `stellarator_flux_surfaces`); the transport T(rho, t) is the real
+    exp-09 burn. The torus sweeps a full turn (seamless loop). Returns the saved Path.
+    """
+    rho = np.asarray(rho, dtype=float)
+    T_rt = np.asarray(T_rt, dtype=float)
+    n_t = T_rt.shape[0]
+    vmax = float(T_rt.max()) if vmax is None else vmax
+    norm = plt.Normalize(vmin=vmin, vmax=max(vmax, vmin + 1e-9))
+    cmap_obj = matplotlib.colormaps[cmap]
+    core = T_rt[:, 0]
+
+    # left: twisty torus — an l=2 elliptical tube cross-section rotating helically with u
+    u = np.linspace(0.0, 2.0 * np.pi, n_u)
+    v = np.linspace(0.0, 2.0 * np.pi, n_v)
+    U, V = np.meshgrid(u, v, indexing="ij")
+    rshape = a * (1.0 + delta * np.cos(2.0 * V - n_periods * U))
+    Rl = R0 + rshape * np.cos(V)
+    Xs, Ys, Zs = Rl * np.cos(U), Rl * np.sin(U), rshape * np.sin(V)
+
+    # right: l=2 shaped (elliptical) poloidal bullseye mesh
+    s = np.linspace(0.0, 1.0, n_s)
+    vv = np.linspace(0.0, 2.0 * np.pi, 90)
+    Sg, Vg = np.meshgrid(s, vv, indexing="ij")
+    rad = Sg * a * (1.0 - delta * np.cos(2.0 * Vg))        # vertically elongated ellipse
+    Xc, Yc = rad * np.cos(Vg), rad * np.sin(Vg)
+    vb = np.linspace(0.0, 2.0 * np.pi, 220)
+    rb = a * (1.0 - delta * np.cos(2.0 * vb))              # plasma boundary ellipse
+    levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
+    lim = a * (1.0 + delta) * 1.14
+
+    fig = plt.figure(figsize=(10.4, 5.0))
+    axL = fig.add_subplot(1, 2, 1, projection="3d")
+    axR = fig.add_subplot(1, 2, 2)
+    txt = apply_house_style(fig, [axR], dark=dark)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cb = fig.colorbar(sm, ax=axR, label="T [keV]", shrink=0.85, pad=0.02)
+    cb.ax.yaxis.label.set_color(txt); cb.ax.tick_params(colors=txt)
+    cb.outline.set_edgecolor(txt)
+    if dark:
+        for axis in (axL.xaxis, axL.yaxis, axL.zaxis):
+            axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
+    rng = R0 + a * (1.0 + delta)
+
+    def draw(i):
+        axL.clear(); axL.set_axis_off()
+        if dark:
+            axL.patch.set_alpha(0.0)
+        axL.plot_surface(Xs, Ys, Zs, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
+                         linewidth=0, antialiased=True, shade=True)
+        axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
+        axL.set_box_aspect((1, 1, 1))
+        axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
+        axL.set_title("3-D stellarator (surface = core T)", color=txt, fontsize=10, pad=0)
+        axL.text2D(0.5, 0.04, "steady · no sawteeth", transform=axL.transAxes,
+                   color="#34d399", fontsize=11, fontweight="bold", ha="center")
+
+        axR.clear(); axR.set_aspect("equal"); axR.set_xticks([]); axR.set_yticks([])
+        if dark:
+            axR.set_facecolor(HOUSE_BG)
+        Tc = np.broadcast_to(np.interp(s, rho, T_rt[i])[:, None], Sg.shape)
+        axR.contourf(Xc, Yc, Tc, levels=levels, cmap=cmap, norm=norm, extend="max")
+        axR.plot(rb * np.cos(vb), rb * np.sin(vb), color=txt, lw=0.9, alpha=0.5)
+        axR.set_xlim(-lim, lim); axR.set_ylim(-lim * 1.05, lim)
+        axR.set_title("poloidal cross-section  T(ρ)  ·  l=2 shaped", color=txt, fontsize=10)
+        parts = []
+        if times is not None:
+            parts.append(f"t = {times[i]:5.1f} s")
+        parts.append("sawteeth: 0")
+        axR.text(0.0, -lim * 0.98, "    ".join(parts), color=txt, fontsize=10,
+                 family="monospace", ha="center")
+
+    fig.suptitle(title, color=txt, fontsize=12, y=0.98)
+    anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
 def animate_torus_3d(edge_value, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
                      cmap="inferno", title="", fps=20, dpi=90, rotate=True,
                      vmin=None, vmax=None):

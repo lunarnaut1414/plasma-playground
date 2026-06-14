@@ -519,30 +519,45 @@ def stellarator_burn():
     RR, TT = np.meshgrid(rho, theta)
     X, Y = RR * np.cos(TT), RR * np.sin(TT)
     vmax = float(frames.max())
+    levels = np.linspace(0, vmax, 41)
     fig, (axc, axt) = plt.subplots(1, 2, figsize=(11, 5.0),
                                    gridspec_kw={"width_ratios": [1, 1.25]})
-    axc.set_aspect("equal")
+    txt = anim.apply_house_style(fig, [axc, axt], dark=True)
+    sm = plt.cm.ScalarMappable(cmap="inferno", norm=plt.Normalize(0, vmax))
+    cb = fig.colorbar(sm, ax=axc, fraction=0.046, pad=0.03, label="T [keV]")
+    cb.ax.yaxis.label.set_color(txt); cb.ax.tick_params(colors=txt)
+    cb.outline.set_edgecolor(txt)
+    fig.subplots_adjust(wspace=0.32)                # keep colorbar clear of axt ylabel
 
     def draw(i):
         axc.clear(); axc.set_aspect("equal"); axc.set_xticks([]); axc.set_yticks([])
-        axc.contourf(X, Y, np.broadcast_to(frames[i], RR.shape), levels=40,
-                     cmap="viridis", vmin=0, vmax=vmax)
-        axc.set_title(f"stellarator cross-section  t = {ts[i]:.1f} s")
-        axt.clear()
-        axt.axvspan(0, 4, color="gold", alpha=0.15)
-        axt.axvline(14.0, color="purple", ls="--", lw=1.0)
-        axt.plot(ts[:i + 1], T0_tok[:i + 1], color="0.6", lw=0.8,
-                 label="tokamak T0 (sawtoothing)")
-        axt.plot(ts[:i + 1], T0_st[:i + 1], color="teal", lw=1.4,
-                 label="stellarator T0 (smooth)")
+        axc.set_facecolor(anim.HOUSE_BG)
+        for spine in axc.spines.values():
+            spine.set_visible(False)
+        axc.contourf(X, Y, np.broadcast_to(frames[i], RR.shape), levels=levels,
+                     cmap="inferno", vmin=0, vmax=vmax, extend="max")
+        axc.plot(np.cos(theta), np.sin(theta), color=txt, lw=0.8, alpha=0.4)
+        axc.set_title(f"stellarator cross-section  t = {ts[i]:4.1f} s", color=txt)
+
+        axt.clear(); anim.apply_house_style(fig, [axt])
+        axt.axvspan(0, 4, color="#ffd166", alpha=0.12)
+        axt.text(0.3, max(35, vmax * 1.1) - 1.5, "heating", color="#ffd166", fontsize=8)
+        axt.axvline(14.0, color="#c792ea", ls="--", lw=1.1)
+        axt.text(14.2, max(35, vmax * 1.1) - 1.5, "pellet", color="#c792ea", fontsize=8)
+        axt.plot(ts[:i + 1], T0_tok[:i + 1], color="#8a8f99", lw=0.9,
+                 label=f"tokamak T0 (sawtoothing, {n_tok})")
+        axt.plot(ts[:i + 1], T0_st[:i + 1], color="#22d3ee", lw=1.8,
+                 label=f"stellarator T0 (smooth, {n_st})")
         axt.set(xlim=(0, ts[-1]), ylim=(0, max(35, vmax * 1.1)), xlabel="t [s]",
                 ylabel="core T0 [keV]",
                 title="Stellarator burn: steady, NO sawteeth (no plasma current)")
-        axt.legend(loc="lower right", fontsize=8)
+        leg = axt.legend(loc="lower right", fontsize=8, facecolor=anim.HOUSE_BG,
+                         edgecolor=txt, labelcolor=txt, title="crashes")
+        leg.get_title().set_color(txt); leg.get_frame().set_alpha(0.6)
 
     an = FuncAnimation(fig, draw, frames=len(ts), blit=False)
     out = f"{OUT}/stellarator_burn.gif"
-    an.save(out, writer=PillowWriter(fps=14), dpi=90)
+    an.save(out, writer=PillowWriter(fps=16), dpi=110)
     plt.close(fig)
     print(f"  wrote {out}")
 

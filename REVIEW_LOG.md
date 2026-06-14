@@ -107,6 +107,22 @@ Verify: regenerated (179 sawteeth, q(0) min 0.94 — unchanged); re-dumped+Read 
 ALL 4 HEROES DONE (R1 3-D discharge, R2 tearing, R3 stellarator, R4 discharge). Next: R5 =
 stellarator_burn (the contrast 2-panel).
 
+## R5 — stellarator_burn — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D2  ->  (after): A5 B5 C5 D5
+Saw: the steady-state contrast is crisp and correct (smooth stellarator T0 vs sawtoothing
+tokamak, pellet drop+reclimb on both). BUT default white (clashing), no colorbar, and the
+cross-section used VIRIDIS for temperature — inconsistent with the house convention
+(inferno=T, as in R4's tokamak cross-section: same quantity must use the same cmap).
+Defect: D-axis (white) + C-axis (no colorbar) + cmap-convention break (viridis T).
+Did: pure-style TWEAK. Dark house style both panels; cross-section viridis->INFERNO (T
+convention) + T[keV] colorbar + rho=1 boundary, box spines hidden; trace brightened
+(stellarator cyan #22d3ee bold, tokamak grey), legend now QUANTIFIES the contrast
+(title "crashes": tokamak 179 vs stellarator 0); labeled heating band + pellet line; fixed
+colorbar/ylabel overlap with wspace=0.32. dpi 90->110, fps 14->16.
+Verify: regenerated (0 vs 179 sawteeth — unchanged); re-dumped+Read — clean, consistent,
+the 179-vs-0 contrast explicit. pytest 208; ruff clean. No new test (style-only). 2.2 MB.
+Next: R6 = kink_eigenmode (check the schematic-amplitude honesty call).
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

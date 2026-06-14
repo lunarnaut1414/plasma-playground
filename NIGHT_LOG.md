@@ -55,3 +55,24 @@
   repo-root `outputs/` (gitignored), not the experiment's `outputs/`.
 - next: **A2 (F2)** — two-temperature (Te, Ti) + heating mix in exp 09
   (`burn_1d_two_temperature.gif`).
+
+## A2 (F2.5) — DONE — c0bbd3c
+- built: `TwoTempTransport1D` (subclasses `Transport1D`) evolving Te, Ti, n with
+  separate χ_e/χ_i and a Braginskii electron-ion exchange term. New kernels in
+  `transport.py`: `coulomb_logarithm`, `collision_frequency_ei` (NRL Spitzer ν_e),
+  `equipartition_power` (Q_Δ), `equipartition_time`, `two_temperature_relax_0d`.
+  Fusion/α-power use Ti, brem uses Te, NBI→ions, α→electrons (f_αe=0.85).
+- validation: τ_eq(n=1e20, Te=10 keV) = 231 ms matches NRL/Spitzer (~230 ms);
+  τ_eq ∝ Te^1.5/n_e; 0-D split (12,4)keV relaxes to energy-conserving mean (8 keV)
+  at exactly 1/τ_eq; 1-D beam-heated discharge steadies at Ti0=24.2 > Te0=12.8 keV
+  (Ti/Te=1.89). **161 passed** (7 new), ruff clean.
+- gif: `outputs/burn_1d_two_temperature.gif` (657K, Te(ρ,t)+Ti(ρ,t) panels; regen
+  `python gif_gallery.py burn_1d_two_temperature`); PNG `burn_1d_two_temperature.png`.
+  Memo `docs/A2_TWO_TEMPERATURE.md`; `run.py --mode twotemp` prints all three checks.
+- gotcha: the 1-D model has NO β-limit (that's A4), so with low χ it runs away to
+  ~130 keV. The showcase is deliberately a beam-heated SUB-ignition case (χ_e=0.8,
+  χ_i=0.4, n=8e19) sitting at a realistic ~24 keV. Also: τ_eq uses the *electron*
+  temperature in ν_e; test the difference-decay rate from the FIRST step (instantaneous)
+  and predict at Te0, else the window-average drifts ~12% and the test fails spuriously.
+- next: **A3 (F3)** — transport on the real Grad–Shafranov equilibrium (exp 04
+  `solvers.grad_shafranov_solve`); deliverable `burn_dshaped_cross_section.gif`.

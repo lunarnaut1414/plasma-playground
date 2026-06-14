@@ -528,7 +528,7 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
     saw_cum = np.cumsum(crashes) if crashes is not None else None
 
     X, Y, Z = torus_surface(R0, a, n_u, n_v)                 # left: full torus
-    ang = np.linspace(0.0, 2.0 * np.pi, 80)                  # right: polar bullseye mesh
+    ang = np.linspace(0.0, 2.0 * np.pi, max(80, n_u))        # right: polar bullseye mesh
     Rg, Ag = np.meshgrid(rho, ang, indexing="ij")
     Xc, Yc = Rg * np.cos(Ag), Rg * np.sin(Ag)
     levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
@@ -642,7 +642,7 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
 
     # right: l=2 shaped (elliptical) poloidal bullseye mesh
     s = np.linspace(0.0, 1.0, n_s)
-    vv = np.linspace(0.0, 2.0 * np.pi, 90)
+    vv = np.linspace(0.0, 2.0 * np.pi, max(90, 2 * n_s))
     Sg, Vg = np.meshgrid(s, vv, indexing="ij")
     rad = Sg * a * (1.0 - delta * np.cos(2.0 * Vg))        # vertically elongated ellipse
     Xc, Yc = rad * np.cos(Vg), rad * np.sin(Vg)

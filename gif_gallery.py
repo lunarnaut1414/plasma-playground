@@ -462,14 +462,14 @@ def tokamak_3d_discharge():
     crash flattens it (a per-frame crash count drives a flash + running counter, so
     the ~179 crashes read as activity instead of aliasing onto the frames). Reuses
     the validated Track-C data and `animate.animate_torus_cutaway`."""
-    sim = tr.Transport1D(1.0, n_grid=129, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
+    sim = tr.Transport1D(1.0, n_grid=1025, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
                          B=5.3, beta_limit=0.04, beta_stiffness=40.0)
     sim.set_state(T=2.0, n=1e20)
     aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
     hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
     pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
-    dt, t_end = 2e-3, 22.0
-    stride = max(1, int(t_end / dt) // 100)
+    dt, t_end = 2.5e-4, 22.0                          # refined grid (x8) + smaller dt (/8)
+    stride = max(1, int(t_end / dt) // 200)
     times, T_rt, crashes, n_saw, saw_since = [], [], [], 0, 0
     for k in range(int(t_end / dt)):
         t = sim.t
@@ -488,27 +488,30 @@ def tokamak_3d_discharge():
     times, T_rt, crashes = np.array(times), np.array(T_rt), np.array(crashes)
     print(f"  [tokamak_3d_discharge] {n_saw} sawteeth; core T "
           f"{T_rt[:, 0].min():.0f}-{T_rt[:, 0].max():.0f} keV over the discharge "
-          f"(per-frame crash count max {crashes.max()})")
+          f"(grid {sim.rho.size}, {times.size} frames, per-frame crash max {crashes.max()})")
     coils = (anim.tf_coils(3.0, 1.35, n_coils=12)              # rings around the tube
              + anim.central_solenoid(1.55, 1.5))               # + current-drive transformer
     out = anim.animate_discharge_3d(
         sim.rho, T_rt, times, path=f"{OUT}/tokamak_3d_discharge.gif",
         R0=3.0, a=1.0, title="Tokamak discharge: ignition → burn + sawteeth → pellet",
-        vmax=float(T_rt.max()), crashes=crashes, fps=16, dpi=120, coils=coils)
+        vmax=float(T_rt.max()), crashes=crashes, fps=20, dpi=120, coils=coils,
+        n_u=226, n_v=113)
     print(f"  wrote {out}")
 
 
-def _discharge_run(events):
+def _discharge_run(events, n_grid=129, dt=2e-3, n_frames=100):
     """Run the exp-09 burn (ignition->steady->pellet); apply sawtooth crashes only if
-    `events` (the tokamak). Returns t, T0, T(rho) frames, #crashes."""
-    sim = tr.Transport1D(1.0, n_grid=129, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
+    `events` (the tokamak). `n_grid`/`dt`/`n_frames` set the spatial grid, solver step,
+    and saved-frame count (the 3-D showcases pass a refined grid + smaller dt). Returns
+    t, T0, T(rho) frames, #crashes."""
+    sim = tr.Transport1D(1.0, n_grid=n_grid, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
                          B=5.3, beta_limit=0.04, beta_stiffness=40.0)
     sim.set_state(T=2.0, n=1e20)
     aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
     hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
     pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
-    dt, t_end = 2e-3, 22.0
-    stride = max(1, int(t_end / dt) // 100)
+    t_end = 22.0
+    stride = max(1, int(t_end / dt) // n_frames)
     ts, T0, frames, n_saw = [], [], [], 0
     for k in range(int(t_end / dt)):
         t = sim.t
@@ -532,14 +535,17 @@ def stellarator_3d_burn():
     rotating helically) beside its shaped (elliptical) T(rho) bullseye. Steady-state —
     NO sawtooth crashes (no plasma current -> no q=1 kink). Reuses `_discharge_run`
     (events=False) and `animate.animate_stellarator_3d`."""
-    ts, _T0, frames, n_saw, rho = _discharge_run(events=False)
+    ts, _T0, frames, n_saw, rho = _discharge_run(events=False, n_grid=1025, dt=2.5e-4,
+                                                 n_frames=200)
     print(f"  [stellarator_3d_burn] {n_saw} sawteeth (current-free); core T "
-          f"{frames[:, 0].min():.0f}-{frames[:, 0].max():.0f} keV over the discharge")
+          f"{frames[:, 0].min():.0f}-{frames[:, 0].max():.0f} keV over the discharge "
+          f"(grid {rho.size}, {ts.size} frames)")
     coils = anim.helical_coils(3.0, 1.55, n_coils=2, n_wind=5)   # twisted external winding
     out = anim.animate_stellarator_3d(
         rho, frames, ts, path=f"{OUT}/stellarator_3d_burn.gif", R0=3.0, a=1.0,
         title="Stellarator discharge: steady burn, no sawteeth (current-free)",
-        vmax=float(frames.max()), fps=16, dpi=120, coils=coils)
+        vmax=float(frames.max()), fps=20, dpi=120, coils=coils,
+        n_u=424, n_v=130, n_s=130)
     print(f"  wrote {out}")
 
 

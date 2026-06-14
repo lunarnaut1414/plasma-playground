@@ -158,3 +158,28 @@
   deliverable `tearing_island_saturation.gif`. Then B3 sawtooth cycle, then Track C
   (couple a sawtooth/tearing event into the exp-09 burn). NOTE: B2 is a bigger rung
   (2-D nonlinear PDE) — may need a validated partial across two wakes.
+
+## B2a (MHD track) — PARTIAL (linear phase DONE; saturation = B2b) — 3e10d4b
+- built: `plasmaplay/reduced_mhd.py` — `ReducedMHD`: the Strauss reduced-MHD eqns
+  (ψ, vorticity U=∇²φ) on a 2-D slab, x finite-difference + y spectral (FFT), a
+  **vectorized** FFT+tridiagonal elliptic solve for φ from U (`_thomas_vec` over all
+  ky at once — ~2× faster), SSP-RK2. Harris sheet B_y0=tanh(x) (same as T4
+  `tearing.py`). Diagnostics: m=1 reconnected flux + island width W=4√(ψ_rec).
+- validation (3 tests, `tests/test_reduced_mhd.py`): elliptic inversion exact (~1e-15);
+  seeded mode grows for ka<1, decays for ka>1; **γ∝S^-3/5** measured exponent −0.583
+  (FKR −0.6) by direct simulation, across a factor-4 in S. **194 passed**, ruff clean.
+- gif: `outputs/tearing_island.gif` (920K, the sheet tearing into an island; named
+  honestly — NOT "saturation"); PNG `tearing_island.png` (`run.py --island`). Memo
+  `docs/B2_REDUCED_MHD.md`.
+- gotcha: (1) the simulated **absolute growth rate is ~0.54× the T4 eigenvalue** — an
+  O(1) convention/discretization difference (IVP vs eigenvalue; the eigenvalue is
+  itself FKR-seeded). So tests assert the **S^-3/5 scaling + threshold**, NOT the
+  absolute γ. Never forced the match. (2) tearing.py eigenvalue is **inviscid** → set
+  Pm=0 to compare. (3) resistive layer δ~S^-2/5 must be resolved (δ/dx≳3): nx≈224 over
+  Lx=4 at S=400-1600. (4) the per-ky python tridiagonal loop was the bottleneck —
+  vectorizing across ky cut test time ~2×.
+- next: **B2b** — nonlinear **Rutherford saturation**: run the solver long, show island
+  width W(t) saturates (dW/dt→0) and follows dW/dt∝Δ′(W); validate + make
+  `tearing_island_saturation.gif`. (A ~700-step-to-t700 run was started this wake but
+  not completed; the solver is ready, just needs a long run + a falsifiable saturation
+  check.) Then **B3** sawtooth cycle, then **Track C** (couple MHD event into exp-09 burn).

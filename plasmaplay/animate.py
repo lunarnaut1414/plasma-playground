@@ -410,7 +410,7 @@ def animate_torus_nested(rho_levels, T_rt, times=None, *, path, R0=3.0, a=1.0,
 
 
 def torus_field_lines(R0, a, iota, n_lines=3, *, shape=None, n_tor=3.0, npts=600,
-                      rscale=1.13, phase0=0.0):
+                      rscale=1.0, phase0=0.0):
     """Helical magnetic field lines wrapping a torus surface (the rotational transform).
 
     Returns a list of (X, Y, Z) curves. Each advances poloidally by `iota` radians per
@@ -478,8 +478,15 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
     Rg, Ag = np.meshgrid(rho, ang, indexing="ij")
     Xc, Yc = Rg * np.cos(Ag), Rg * np.sin(Ag)
     levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
-    flines = (torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor)
-              if field_iota else [])
+    # confinement field lines ON two nested flux surfaces (boundary + core); the core
+    # twists tighter (q->1 on axis -> larger ι) — the sheared rotational transform
+    flines = []
+    if field_iota:
+        flines += [(c, 1.6, 0.95) for c in
+                   torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor)]
+        flines += [(c, 1.2, 0.8) for c in
+                   torus_field_lines(R0, 0.55 * a, field_iota * 1.9, n_field,
+                                     n_tor=field_tor, phase0=0.6)]
     bpq = poloidal_bp_quiver() if show_bp else None
 
     fig = plt.figure(figsize=(10.4, 5.0))
@@ -501,14 +508,14 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
         if dark:
             axL.patch.set_alpha(0.0)                   # cleared each frame -> re-hide
         axL.plot_surface(X, Y, Z, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
-                         linewidth=0, antialiased=True, shade=True)
-        for fx, fy, fz in flines:                       # helical B field lines (ι = 1/q)
-            axL.plot(fx, fy, fz, color="#67e8f9", lw=1.7, alpha=0.95)
-        rng = R0 + a * 1.18
+                         linewidth=0, antialiased=True, shade=True, alpha=0.5)
+        for (fx, fy, fz), lw, al in flines:             # confinement field lines (ι=1/q)
+            axL.plot(fx, fy, fz, color="#67e8f9", lw=lw, alpha=al)
+        rng = R0 + a
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        ftxt = "  ·  cyan = B field lines (ι=1/q)" if flines else ""
+        ftxt = "  ·  cyan = confinement field lines (ι=1/q)" if flines else ""
         axL.set_title(f"3-D torus (surface = core T){ftxt}", color=txt, fontsize=9, pad=0)
         if crashes is not None and crashes[i] > 0:     # flash over the torus panel
             axL.text2D(0.5, 0.04, "⚡ sawtooth crash", transform=axL.transAxes,
@@ -586,11 +593,19 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
     rb = a * (1.0 - delta * np.cos(2.0 * vb))              # plasma boundary ellipse
     levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
     lim = a * (1.0 + delta) * 1.14
-    # field lines wrap the SHAPED surface (twist ι from geometry, not current)
-    flines = (torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor,
-                                shape=lambda vv_, uu_: 1.0 + delta * np.cos(
-                                    2.0 * vv_ - n_periods * uu_))
-              if field_iota else [])
+    # confinement field lines on the SHAPED nested surfaces (twist ι from geometry, not
+    # current); boundary + a core surface, both following the l=2 lobes
+    def _shape(vv_, uu_):
+        return 1.0 + delta * np.cos(2.0 * vv_ - n_periods * uu_)
+
+    flines = []
+    if field_iota:
+        flines += [(c, 1.6, 0.95) for c in
+                   torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor,
+                                     shape=_shape)]
+        flines += [(c, 1.2, 0.8) for c in
+                   torus_field_lines(R0, 0.55 * a, field_iota * 1.3, n_field,
+                                     n_tor=field_tor, shape=_shape, phase0=0.6)]
     bpq = poloidal_bp_quiver(shape_r=lambda vq: 1.0 - delta * np.cos(2.0 * vq)) \
         if show_bp else None
 
@@ -605,20 +620,20 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
     if dark:
         for axis in (axL.xaxis, axL.yaxis, axL.zaxis):
             axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
-    rng = R0 + a * (1.0 + delta) * 1.18
+    rng = R0 + a * (1.0 + delta)
 
     def draw(i):
         axL.clear(); axL.set_axis_off()
         if dark:
             axL.patch.set_alpha(0.0)
         axL.plot_surface(Xs, Ys, Zs, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
-                         linewidth=0, antialiased=True, shade=True)
-        for fx, fy, fz in flines:                       # helical B field lines (geometry)
-            axL.plot(fx, fy, fz, color="#67e8f9", lw=1.7, alpha=0.95)
+                         linewidth=0, antialiased=True, shade=True, alpha=0.5)
+        for (fx, fy, fz), lw, al in flines:             # confinement field lines (geometry)
+            axL.plot(fx, fy, fz, color="#67e8f9", lw=lw, alpha=al)
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        ftxt = "  ·  cyan = B field lines (ι from coils)" if flines else ""
+        ftxt = "  ·  cyan = confinement field lines (ι from coils)" if flines else ""
         axL.set_title(f"3-D stellarator (surface = core T){ftxt}", color=txt,
                       fontsize=9, pad=0)
         axL.text2D(0.5, 0.04, "steady · no sawteeth", transform=axL.transAxes,

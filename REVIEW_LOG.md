@@ -123,6 +123,25 @@ Verify: regenerated (0 vs 179 sawteeth — unchanged); re-dumped+Read — clean,
 the 179-vs-0 contrast explicit. pytest 208; ruff clean. No new test (style-only). 2.2 MB.
 Next: R6 = kink_eigenmode (check the schematic-amplitude honesty call).
 
+## R6 — kink_eigenmode — TWEAK — (pending commit)
+Scores (before): A4 B4 C4 D2  ->  (after): A5 B4 C5 D5
+Saw: left panel is EXACT (m=1 top-hat eigenfunction xi_r + q(r) crossing 1 at r1=0.548);
+right shows the real crescent displacement. The amplitude readout said "amp=" (not "t=") so
+it wasn't faking a clock, but it never disclosed that the growth ENVELOPE is schematic
+(0.33*linspace^1.5, no gamma) — the charter requires a schematic to say so. Also default
+white.
+Honesty call: driving a real ideal-kink gamma isn't available (only resistive FKR is, in
+R2), and ideal-kink saturation is nonlinear — so the correct move is to LABEL it schematic
+(eigenfunction exact, envelope illustrative), NOT invent a growth rate. Did that.
+Did: TWEAK. Added explicit "illustrative growth envelope · eigenfunction exact" footnote +
+docstring note; readout now "displacement = X.XX a". Dark house style both panels (axL
+styled once; axR re-styled per frame). Envelope x^1.5 -> smoothstep, phase 1.5π -> full 2π
+(seamless rotation). Colors -> house palette (xi_r red, q cyan). dpi 90->120.
+Verify: regenerated (q(0)=0.85<1 -> UNSTABLE, r1=0.548 — unchanged); re-dumped+Read — dark,
+honest, the crescent clear. pytest 208; ruff clean. No new test (style+labeling; kink
+physics covered in test_cylinder_mhd). size 1.1 MB.
+Next: R7 = operating_modes.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

@@ -14,10 +14,11 @@ factor q(r) and the two organising instabilities appear:
     by the outer Newcomb equation and its stability index Delta' (sign = stability),
     with the resistive growth rate following the FKR gamma ~ S^(-3/5) layer law.
 
-This is rung B1 of the MHD track (NIGHT.md): it lifts the slab tearing of T4
-(plasmaplay/tearing.py) onto a real q(r). Later rungs add the nonlinear island
-saturation (B2) and the sawtooth cycle (B3), and Track C couples a sawtooth/tearing
-event into the transport burn of experiment 09.
+Rungs B1 (linear, default) and B2 (nonlinear reduced-MHD island + Rutherford
+saturation, `--island`) of the MHD track (NIGHT.md): they lift the slab tearing of T4
+(plasmaplay/tearing.py) onto a real q(r) and Harris sheet. The next rung is the
+sawtooth cycle (B3), and Track C couples a sawtooth/tearing event into the transport
+burn of experiment 09.
 
 Run:
     python run.py [--save]
@@ -129,27 +130,39 @@ def run_island(save=False):
     print(f"  growth: gamma(S=400)={g_lo:.3e}, gamma(S=1600)={g_hi:.3e}")
     print(f"  -> S-scaling exponent = {expo:.3f}  (FKR S^-3/5 = -0.600)")
 
-    # run into the early-nonlinear regime to render the island structure
-    sim = rm.ReducedMHD(k, S=400.0, Pm=0.0, nx=224, ny=48, Lx=4.0).seed(5e-3)
-    sim.run(120.0, 0.008)
-    print(f"  island width W = {sim.island_width():.3f} (sheet widths) at t={sim.t:.0f}")
-    print("  NOTE: the Rutherford *saturation* (W -> W_sat) is the follow-on rung (B2b)")
-    _plot_island(sim, save)
+    # nonlinear run to the Rutherford-saturation regime: W(t) rises then bends over
+    sim = rm.ReducedMHD(k, S=100.0, Pm=0.0, nx=160, ny=48, Lx=4.0).seed(1e-3)
+    dt = 0.012
+    ts, W = [], []
+    for i in range(int(280.0 / dt)):
+        sim.step(dt)
+        if i % 60 == 0:
+            ts.append(sim.t); W.append(sim.island_width())
+    ts, W = np.array(ts), np.array(W)
+    dWdt = np.gradient(W, ts)
+    ipk = int(np.argmax(dWdt))
+    print(f"  nonlinear saturation: island W -> {W[-1]:.2f} sheet widths at t={ts[-1]:.0f}")
+    print(f"  dW/dt peaks {dWdt[ipk]:.2e} (t={ts[ipk]:.0f}), then falls to {dWdt[-1]:.2e} "
+          f"(ratio {dWdt[-1]/dWdt[ipk]:.2f}) -> Rutherford saturation (Delta'(W) -> 0)")
+    _plot_island(sim, ts, W, save)
 
 
-def _plot_island(sim, save):
+def _plot_island(sim, ts, W, save):
     yext = np.concatenate([sim.y, [sim.Ly]])
     psi = np.concatenate([sim.flux_function(), sim.flux_function()[:, :1]], axis=1)
-    fig, ax = plt.subplots(figsize=(7, 5))
-    cs = ax.contour(yext, sim.x, psi, levels=40, colors="k", linewidths=0.6)
-    ax.contourf(yext, sim.x, psi, levels=40, cmap="RdBu_r")
-    ax.axhline(0.0, color="0.4", ls=":", lw=0.8)
-    ax.set(xlabel="y", ylabel="x", ylim=(-2.5, 2.5),
-           title="Reconnected magnetic island (flux contours)")
-    fig.colorbar(cs, ax=ax, label=r"$\psi$", shrink=0.85)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    ax[0].plot(ts, W, color="crimson", lw=2)
+    ax[0].set(xlabel=r"$t/\tau_A$", ylabel="island width W",
+              title="Rutherford saturation: W(t) bends over")
+    cs = ax[1].contour(yext, sim.x, psi, levels=40, colors="k", linewidths=0.6)
+    ax[1].contourf(yext, sim.x, psi, levels=40, cmap="RdBu_r")
+    ax[1].axhline(0.0, color="0.4", ls=":", lw=0.8)
+    ax[1].set(xlabel="y", ylabel="x", ylim=(-2.5, 2.5),
+              title="Saturated magnetic island (flux contours)")
+    fig.colorbar(cs, ax=ax[1], label=r"$\psi$", shrink=0.85)
     fig.tight_layout()
     if save:
-        out = plotting.ensure_outputs_dir(__file__) / "tearing_island.png"
+        out = plotting.ensure_outputs_dir(__file__) / "tearing_island_saturation.png"
         fig.savefig(out, dpi=130, bbox_inches="tight")
         print(f"  saved {out}")
     else:

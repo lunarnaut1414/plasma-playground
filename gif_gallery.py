@@ -288,39 +288,50 @@ def kink_eigenmode():
     print(f"  wrote {out}")
 
 
-def tearing_island():
+def tearing_island_saturation():
     """B2 (reduced MHD): a tearing mode reconnects the Harris sheet into a magnetic
-    island. Flux contours over time — the neutral line tears open into the island's
-    X-point/O-point chain as the mode grows. The linear phase obeys the FKR S^-3/5
-    law (validated in tests); the Rutherford saturation is the follow-on rung (B2b)."""
+    island that GROWS then SATURATES (the Rutherford regime). Left: the island width
+    W(t), rising then bending over as dW/dt turns down. Right: the flux contours, the
+    neutral line tearing open into the island and settling. Validated by the dW/dt
+    turnover test; the linear phase obeys the FKR S^-3/5 law."""
     k = 0.5
-    sim = rm.ReducedMHD(k, S=400.0, Pm=0.0, nx=192, ny=64, Lx=4.0).seed(3e-4)
-    dt, t_end, nframes = 0.008, 170.0, 80
+    sim = rm.ReducedMHD(k, S=100.0, Pm=0.0, nx=160, ny=64, Lx=4.0).seed(1e-3)
+    dt, t_end, nframes = 0.012, 300.0, 90
     stride = max(1, int(t_end / dt) // nframes)
     yext = np.concatenate([sim.y, [sim.Ly]])
-    frames, times = [], []
+    frames, times, Wt = [], [], []
     for i in range(int(t_end / dt)):
         sim.step(dt)
         if i % stride == 0:
             psi = sim.flux_function()
             frames.append(np.concatenate([psi, psi[:, :1]], axis=1))
-            times.append(sim.t)
-    print(f"  [tearing_island] k={k}, Delta'>0; island width W={sim.island_width():.3f} "
-          f"at t={sim.t:.0f} (saturation = B2b)")
+            times.append(sim.t); Wt.append(sim.island_width())
+    times, Wt = np.array(times), np.array(Wt)
+    dWdt = np.gradient(Wt, times)
+    i_peak = int(np.argmax(dWdt))
+    print(f"  [tearing_island_saturation] k={k}: W grows to {Wt[-1]:.2f} sheet widths; "
+          f"dW/dt peaks {dWdt[i_peak]:.2e} at t={times[i_peak]:.0f} then falls to "
+          f"{dWdt[-1]:.2e} (saturating, ratio {dWdt[-1]/dWdt[i_peak]:.2f})")
 
-    fig, ax = plt.subplots(figsize=(6.4, 5.0))
+    fig, (axW, axF) = plt.subplots(1, 2, figsize=(11, 5.0),
+                                   gridspec_kw={"width_ratios": [1, 1.1]})
     mask = np.abs(sim.x) <= 2.5
 
     def draw(j):
-        ax.clear()
-        ax.contourf(yext, sim.x[mask], frames[j][mask], levels=40, cmap="RdBu_r")
-        ax.contour(yext, sim.x[mask], frames[j][mask], levels=30, colors="k",
-                   linewidths=0.5)
-        ax.axhline(0.0, color="0.4", ls=":", lw=0.8)
-        ax.set(xlabel="y", ylabel="x", title=f"Tearing -> island   t = {times[j]:.0f}")
+        axW.clear(); axF.clear()
+        axW.plot(times[:j + 1], Wt[:j + 1], color="crimson", lw=2)
+        axW.scatter([times[j]], [Wt[j]], color="crimson", zorder=3)
+        axW.set(xlim=(0, times[-1]), ylim=(0, Wt.max() * 1.1),
+                xlabel=r"$t / \tau_A$", ylabel="island width W",
+                title="Rutherford saturation")
+        axF.contourf(yext, sim.x[mask], frames[j][mask], levels=40, cmap="RdBu_r")
+        axF.contour(yext, sim.x[mask], frames[j][mask], levels=30, colors="k",
+                    linewidths=0.5)
+        axF.axhline(0.0, color="0.4", ls=":", lw=0.8)
+        axF.set(xlabel="y", ylabel="x", title=f"flux contours   t = {times[j]:.0f}")
 
     an = FuncAnimation(fig, draw, frames=len(frames), blit=False)
-    out = f"{OUT}/tearing_island.gif"
+    out = f"{OUT}/tearing_island_saturation.gif"
     an.save(out, writer=PillowWriter(fps=16), dpi=90)
     plt.close(fig)
     print(f"  wrote {out}")
@@ -333,7 +344,7 @@ GALLERY = {
     "burn_dshaped_cross_section": burn_dshaped_cross_section,
     "operating_modes": operating_modes,
     "kink_eigenmode": kink_eigenmode,
-    "tearing_island": tearing_island,
+    "tearing_island_saturation": tearing_island_saturation,
 }
 
 

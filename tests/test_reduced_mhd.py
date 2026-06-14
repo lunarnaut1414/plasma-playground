@@ -65,3 +65,24 @@ def test_linear_growth_scales_as_S_minus_three_fifths(growth):
     g_hi = growth[("u", 0.5, 1600.0)]
     exponent = np.log(g_hi / g_lo) / np.log(1600.0 / 400.0)
     assert -0.75 < exponent < -0.45                # FKR -0.6, with discretization slack
+
+
+def test_island_growth_saturates():
+    """The nonlinear island does NOT grow without bound: its growth rate dW/dt rises,
+    **peaks, then declines** (Rutherford regime, Delta'(W) shrinking toward 0) — the
+    signature of saturation, which an exponentially-growing mode never shows. A small
+    Lundquist number (S=100) reaches it in feasible wall-clock."""
+    s = rm.ReducedMHD(0.5, S=100.0, Pm=0.0, nx=128, ny=32, Lx=4.0).seed(1e-3)
+    dt = 0.012
+    ts, W = [], []
+    for i in range(int(240.0 / dt)):
+        s.step(dt)
+        if i % 60 == 0:
+            ts.append(s.t)
+            W.append(s.island_width())
+    ts, W = np.array(ts), np.array(W)
+    dWdt = np.gradient(W, ts)
+    i_peak = int(np.argmax(dWdt))
+    assert 0 < ts[i_peak] < ts[-1]                 # dW/dt turns over before the end
+    assert dWdt[-1] < 0.7 * dWdt[i_peak]           # growth has decelerated (saturating)
+    assert 0.5 < W[-1] < 4.0                        # a finite, O(sheet-width) island

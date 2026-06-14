@@ -31,7 +31,8 @@ Safety factor & rational surfaces · Newcomb equation · tearing stability index
 the m=1 internal kink and the q(0)<1 sawtooth trigger · Furth–Killeen–Rosenbluth
 resistive-layer growth `γ ∝ Δ′^{4/5} S^{−3/5}`.
 
-This is **rung B1** of the MHD track. It reuses the slab-tearing layer physics of
-[`plasmaplay/tearing.py`](../../plasmaplay/tearing.py) (T4) on a real `q(r)`. Next:
-nonlinear island saturation (B2), the sawtooth cycle (B3), then the staged coupling
-of a sawtooth/tearing event into the experiment-09 burn (Track C). See `PLAN.md`.
+Rungs **B1** (cylinder linear stability) and **B2** (nonlinear reduced-MHD island +
+Rutherford saturation, `run.py --island`) are implemented, reusing the slab-tearing
+layer physics of [`plasmaplay/tearing.py`](../../plasmaplay/tearing.py) (T4) on a real
+`q(r)` and Harris sheet. Next: the sawtooth cycle (B3), then the staged coupling of a
+sawtooth/tearing event into the experiment-09 burn (Track C). See `PLAN.md`.

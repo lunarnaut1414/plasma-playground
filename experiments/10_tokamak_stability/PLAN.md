@@ -1,9 +1,9 @@
 # 10 — Tokamak MHD stability — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** B1 implemented (cylinder linear stability, `cylinder_mhd.py`, 14 tests);
-> B2 linear phase implemented (`reduced_mhd.py`, 3 tests) — the nonlinear Rutherford
-> saturation (B2b) and B3 (sawtooth cycle) are next.
+> **Status:** B1 (cylinder linear stability, `cylinder_mhd.py`, 14 tests) and B2
+> (nonlinear reduced-MHD tearing island + Rutherford saturation, `reduced_mhd.py`,
+> 4 tests) implemented. B3 (the sawtooth cycle) is next.
 
 ## The question
 
@@ -35,21 +35,22 @@ later, toroidal rungs.)
 - **Deliverable:** `outputs/kink_eigenmode.gif` — the m=1 internal kink: the core
   shifting into the characteristic crescent; `kink_eigenmode.png` still.
 
-### B2 — Nonlinear reduced-MHD island  ◧ linear phase done; saturation = B2b
+### B2 — Nonlinear reduced-MHD island + Rutherford saturation  ✅ implemented (`run.py --island`)
 - **Models:** `plasmaplay/reduced_mhd.py` — the Strauss reduced-MHD equations (ψ and
-  vorticity U=∇²φ) on a 2-D slab (x finite-difference, y spectral, FFT+tridiagonal
-  elliptic solve for φ), on the Harris sheet of T4. A tearing mode grows and
-  reconnects an island.
-- **Validation (done):** the elliptic inversion is exact; a seeded mode grows for
-  ka<1 and decays for ka>1; the linear growth rate obeys **γ ∝ S^(−3/5)** (measured
-  exponent −0.58) — the FKR layer law, by direct simulation. *(3 tests)* The absolute
-  rate is ~0.54× the T4 eigenvalue (an O(1) convention difference; scaling, not the
-  value, is asserted).
-- **Deliverable (partial):** `outputs/tearing_island.gif` — the sheet tearing into an
-  island; `tearing_island.png` still (`run.py --island`).
-- **B2b (next):** the nonlinear **Rutherford saturation** — island width W(t)
-  following dW/dt ∝ Δ′(W) and saturating at Δ′(W_sat)=0 — and the
-  `tearing_island_saturation.gif`.
+  vorticity U=∇²φ) on a 2-D slab (x finite-difference, y spectral, vectorized
+  FFT+tridiagonal elliptic solve for φ, SSP-RK2), on the Harris sheet of T4. A tearing
+  mode grows exponentially, reconnects an island, and **saturates** (Rutherford).
+- **Validation:** the elliptic inversion is exact; a seeded mode grows for ka<1 and
+  decays for ka>1; the **linear growth obeys γ ∝ S^(−3/5)** (measured exponent −0.58,
+  FKR); the **island saturates** — dW/dt rises, **peaks, then declines** (W → W_sat ~ 2
+  sheet widths) rather than growing exponentially. *(4 tests)*
+- **Deliverable:** `outputs/tearing_island_saturation.gif` — W(t) bending over beside
+  the flux contours of the reconnecting/saturating island; `..._saturation.png` still.
+- **Scope (honest):** the absolute linear growth rate is ~0.54× the T4 eigenvalue (an
+  O(1) convention difference — the scaling/threshold are asserted, not the value); the
+  asymptotic plateau is approached on the slow resistive timescale and the exact W_sat
+  is influenced by the wall. The Δ′(W)→0 Rutherford form is shown qualitatively via the
+  dW/dt turnover, not fit to the analytic Rutherford coefficient.
 
 ### B3 — The sawtooth cycle (Kadomtsev)  ◻ not yet
 - **Models:** when q(0)<1, an m=1 reconnection flattens the core (helical-flux

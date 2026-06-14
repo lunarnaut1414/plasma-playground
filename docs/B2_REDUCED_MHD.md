@@ -5,9 +5,9 @@ The second rung of the MHD-instability track (NIGHT.md Track B). B1 gave the
 follows a tearing mode past the exponential phase, where it reconnects field and
 grows a finite **magnetic island**. This is the laptop-scale cousin of JOREK/NIMROD.
 
-**Status: linear phase VALIDATED (committed); nonlinear saturation is the follow-on
-(B2b).** The solver runs nonlinearly, but only the linear-growth physics is asserted
-by tests this rung — see the scope note.
+**Status: DONE — linear growth AND nonlinear Rutherford saturation validated.** The
+solver follows a tearing mode from exponential growth through reconnection into a
+saturated magnetic island.
 
 ## The model (`plasmaplay/reduced_mhd.py`)
 
@@ -37,6 +37,11 @@ width `W = 4√(ψ_rec / B_y0'(0))`.
 - **FKR scaling γ ∝ S^(−3/5):** measured from direct simulation, the growth-rate
   exponent is ≈ −0.59 (FKR −0.6) across a factor-4 range in Lundquist number — the
   same resistive-layer law the slab eigenvalue gives in T4.
+- **Nonlinear Rutherford saturation:** the island width growth rate **dW/dt rises,
+  peaks, then declines** (to <0.3× its peak), and W bends over toward a finite
+  W_sat ≈ 2 sheet widths — the island stops growing exponentially, the hallmark of
+  Rutherford saturation (Δ′(W) shrinking toward 0). An exponential mode never does
+  this. (Tested at S=100, where the resistive saturation time is short enough to reach.)
 
 ## Scope boundary (stated honestly)
 
@@ -45,10 +50,12 @@ width `W = 4√(ψ_rec / B_y0'(0))`.
   difference (initial-value vs eigenvalue, finite Δ′-layer resolution). The tests
   assert the **scaling and threshold**, which are convention-independent, *not* the
   absolute rate. The eigenvalue's own absolute value is itself FKR-seeded.
-- **Nonlinear saturation (B2b).** The solver integrates the full nonlinear brackets,
-  but the **Rutherford saturation** (island width W(t) following dW/dt ∝ Δ′(W) and
-  saturating at Δ′(W_sat)=0) is not yet asserted by a falsifiable test — that, and the
-  `tearing_island_saturation.gif` deliverable, are the follow-on rung.
+- **Saturation, qualitatively.** Saturation is demonstrated via the **dW/dt turnover**
+  (the island stops growing exponentially and W bends toward W_sat); it is *not* fit to
+  the analytic Rutherford coefficient, the asymptotic plateau is approached only on the
+  slow resistive timescale (~S·τ_A), and the exact W_sat is influenced by the Dirichlet
+  wall at finite Lx. The physics — growth → reconnection → saturation — is right; the
+  precise W_sat is model/box-dependent.
 - **Slab, single helicity.** A periodic-y slab around one rational surface (the
   standard tearing testbed), not the full annular (r,θ) with toroidal harmonic
   coupling — that is a later refinement.

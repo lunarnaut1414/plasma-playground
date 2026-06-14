@@ -25,3 +25,17 @@
 - First rung to start: **G1** (visualization/gif foundation) in NIGHT.md §5.
 
 <!-- append milestone entries below this line -->
+
+## G1 — DONE — 6e38e74
+- built: `plasmaplay/animate.py` (gif foundation): `make_frames`, `torus_surface`,
+  `animate_profiles`, `animate_cross_section`, `animate_torus_3d` (PillowWriter, pure
+  Python). `gif_gallery.py` registry + `docs/G1_ANIMATION.md` memo. Wired into
+  `plasmaplay/__init__.py`.
+- validation: 1-D Gaussian-diffusion reference — mass drift 9.08e-03 (conserved),
+  peak-decay-law err 2.22e-16, torus invariant <1e-9. 7 new tests; full suite
+  **147 passed**, ruff clean.
+- gif: `outputs/_smoke_diffusion.gif` (460K, 90 frames). Regen: `python gif_gallery.py smoke_diffusion`.
+- gotcha: a prior session had written these files but never committed and left an
+  unused `pytest` import that failed ruff — always run `ruff check .` before commit.
+  Use `MPLBACKEND=Agg` for headless gif gen.
+- next: **A1 (F1)** — He-ash + dilution + β-limit in exp 09 (`burn_0d_ignition.gif`).

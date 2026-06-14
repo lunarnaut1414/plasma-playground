@@ -104,3 +104,31 @@
   OR jump to **A4 (F3.5)** — Greenwald density limit, L→H transition, radiative
   collapse (`operating_modes.gif`). A4 also adds the missing 1-D β-limit. Recommend
   A4 next (higher showcase value; A3b is a refinement).
+
+## A4 (F3.5) — DONE — 0639869
+- built: `plasmaplay/operating_limits.py` — `greenwald_density` (n_G=Ip/(πa²)),
+  `lh_power_threshold` (Martin 2008), `confinement_factor_lh` (smooth L→H ×2
+  bifurcation), `confinement_factor_greenwald` (density-limit collapse to a floor).
+  Added a `tau_factor(t,n_e,T,p_heat_density)` state hook to `burn_0d_ash`, and a
+  **soft β-limit to the 1-D `Transport1D`** (B/beta_limit/beta_stiffness → raises χ
+  above Troyon β; caps the A2/A3 runaway). `animate.animate_operating_space` draws
+  multiple tracks on one (n,T) plane. Wired: `run.py --mode modes`, gallery
+  `operating_modes`.
+- validation: n_G(15MA,2m)=1.19e20 + scalings; P_LH≈52 MW at ITER point (pub ~50);
+  H-mode >2× hotter than L-mode across threshold; **over-fuel collapse past n_G is
+  REVERSIBLE** (22.7→0.7→21.6 keV); 1-D β-limit pins ⟨β⟩≈4% (vs 11% runaway).
+  **177 passed** (9 new: 8 in `test_operating_limits.py` + 1-D β-limit in
+  `test_transport.py`), ruff clean.
+- gif: `outputs/operating_modes.gif` (310K, L/H/disruption sweeping n-T with the
+  Greenwald line + burning band); PNG `operating_modes.png`. Memo
+  `docs/A4_OPERATING_MODES.md`.
+- gotcha: the 0-D burn is bistable, so the L/H/disruption scenarios need careful
+  tuning — L-mode uses weak CONTINUOUS heating below P_LH (kick-then-off reverts to
+  L when P drops); H-mode needs sustained heating ABOVE P_LH (alphas alone may not
+  hold it after a kick). Greenwald collapse must be gentle (fuel→4.5e19, lands
+  n~1.1 n_G) or n runs to ~1e22. Device S (plasma area) ≈ 4π²R₀a·√((1+κ²)/2).
+- next: Track A is essentially complete (F0–F3.5). Options: **A3b** (self-consistent
+  Picard equilibrium re-solve — refinement), or move to **Track B (MHD instabilities)**
+  — B1 cylindrical linear MHD (internal kink / tearing on a real q(r), reuse
+  `tearing.py`), deliverable `kink_eigenmode.gif`. Recommend **Track B1** (new physics,
+  higher value than A3b; opens the MHD half toward the Track-C coupling).

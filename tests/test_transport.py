@@ -201,3 +201,77 @@ def test_1d_diffusion_conserves_without_sources():
     for _ in range(300):
         sim.step(2e-3)
     assert sim.diagnostics()["W"] <= W0 + 1e-9  # energy does not spontaneously appear
+
+
+# --- F2.5: two temperatures (Te, Ti) + Spitzer equipartition --------------
+def test_equipartition_time_magnitude():
+    """Spitzer equipartition time at n_e=1e20 m^-3, Te=10 keV (D-T, Z=1, mu=2.5):
+    tau_eq ~ 0.23 s. A specific number from the NRL collision-frequency formula."""
+    tau = tr.equipartition_time(1e20, 10.0, z_eff=1.0, mu_i=2.5)
+    assert tau == pytest.approx(0.231, rel=0.05)
+
+
+def test_equipartition_time_scaling():
+    """tau_eq ∝ T_e^{3/2} / n_e to leading order: doubling density roughly halves it
+    (the ~2% excess is the lnLambda's own sqrt(n) dependence); doubling T_e raises it
+    by ~2.7x. Both check the collision-frequency scaling, not just the magnitude."""
+    base = tr.equipartition_time(1e20, 10.0)
+    assert tr.equipartition_time(2e20, 10.0) / base == pytest.approx(0.5, rel=0.05)
+    assert 2.5 < tr.equipartition_time(1e20, 20.0) / base < 3.0
+
+
+def test_equipartition_power_sign_and_zero():
+    """Q_Delta > 0 when electrons are hotter (they heat the ions), < 0 when colder,
+    and exactly zero at T_e = T_i."""
+    assert tr.equipartition_power(1e20, 12.0, 4.0) > 0
+    assert tr.equipartition_power(1e20, 4.0, 12.0) < 0
+    assert tr.equipartition_power(1e20, 8.0, 8.0) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_two_temp_relaxes_to_common_temperature():
+    """With no heating the two channels relax to their mean, conserving total energy
+    (∝ Te+Ti at fixed equal n) at every step."""
+    r = tr.two_temperature_relax_0d(1e20, 12.0, 4.0, t_end=2.0, dt=1e-4)
+    Tmean = 0.5 * (12.0 + 4.0)
+    assert r["T_e"][-1] == pytest.approx(Tmean, rel=0.02)
+    assert r["T_i"][-1] == pytest.approx(Tmean, rel=0.02)
+    tot = r["T_e"] + r["T_i"]
+    assert np.allclose(tot, tot[0], rtol=1e-6)
+
+
+def test_two_temp_relaxation_rate_matches_tau_eq():
+    """The temperature difference decays at the instantaneous rate 1/tau_eq, with
+    tau_eq the Spitzer formula evaluated at the (electron) temperature. Measured from
+    the first step so nu_ei is still that of the initial Te0 — a direct kernel check."""
+    n_e, Te0, Ti0 = 1e20, 11.0, 9.0
+    r = tr.two_temperature_relax_0d(n_e, Te0, Ti0, t_end=1e-3, dt=1e-6)
+    d = r["T_e"] - r["T_i"]
+    tau_meas = -r["t"][1] / np.log(d[1] / d[0])
+    tau_pred = tr.equipartition_time(n_e, Te0)
+    assert tau_meas == pytest.approx(tau_pred, rel=0.02)
+
+
+def test_two_temp_1d_relaxes_when_unheated():
+    """The 1-D solver's coupling drags an initially-split (Te>Ti) plasma together
+    when there is no differential heating."""
+    sim = tr.TwoTempTransport1D(a=1.0, n_grid=65, chi_e=0.5, chi_i=0.5, D=0.3,
+                                Te_edge=1.0, Ti_edge=1.0, n_edge=1e20)
+    sim.set_state(Te=12.0, Ti=6.0, n=1e20)
+    gap0 = sim.diagnostics()["Te0"] - sim.diagnostics()["Ti0"]
+    for _ in range(400):
+        sim.step(2e-3, frac_alpha_e=0.85)
+    gap1 = sim.diagnostics()["Te0"] - sim.diagnostics()["Ti0"]
+    assert gap1 < 0.5 * gap0                      # the gap closes
+
+
+def test_two_temp_1d_ion_heating_gives_hotter_ions():
+    """Neutral-beam-style ion-only heating sustains Ti > Te — equipartition only
+    partly closes the gap — the regime real beam-heated plasmas live in."""
+    sim = tr.TwoTempTransport1D(a=1.0, n_grid=65, chi_e=1.0, chi_i=1.0, D=0.5,
+                                Te_edge=0.5, Ti_edge=0.5, n_edge=5e19)
+    sim.set_state(Te=2.0, Ti=2.0, n=5e19)
+    for _ in range(1500):
+        sim.step(2e-3, p_aux_i_total=3e6, frac_alpha_e=0.85)
+    d = sim.diagnostics()
+    assert d["Ti0"] > d["Te0"]                    # ions hotter on axis
+    assert d["Ti0"] / d["Te0"] > 1.05             # a genuine separation

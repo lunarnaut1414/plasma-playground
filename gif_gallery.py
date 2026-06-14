@@ -72,9 +72,48 @@ def burn_0d_ignition():
     print(f"  wrote {out}")
 
 
+def burn_1d_two_temperature():
+    """A2 (F2.5): 1-D two-temperature burn. Neutral beams heat the ions, fusion
+    alphas heat the electrons, and collisional (Spitzer) equipartition couples the
+    two channels — so the beam-heated plasma settles at Ti > Te. The gif overlays
+    Te(rho,t) and Ti(rho,t). Validates the equipartition time against the formula."""
+    sim = tr.TwoTempTransport1D(a=1.0, n_grid=129, chi_e=0.8, chi_i=0.4, D=0.06,
+                                mu_i=2.5, Te_edge=0.1, Ti_edge=0.1, n_edge=2e19)
+    sim.set_state(Te=2.0, Ti=2.0, n=8e19)
+    n_target, tau_p = 8.0e19, 6.0
+    hold = tr.gaussian_deposition(sim.rho, 0.0, 0.4)
+    nbi = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
+    dt, t_end = 4e-3, 12.0
+    nsteps = int(round(t_end / dt))
+    stride = max(1, nsteps // 100)
+    times, te_fr, ti_fr = [], [], []
+    for k in range(nsteps):
+        t = sim.t
+        p_i = 6.0e5 * (0.3 + 0.7 * min(t / 4.0, 1.0))    # NBI ion heating ramps, stays on
+        p_e = 1.0e5                                       # modest RF/ohmic electron heating
+        sim.step(dt, p_aux_i_total=p_i, p_aux_e_total=p_e, aux_i_profile=nbi,
+                 frac_alpha_e=0.85, fuel_total=n_target / tau_p, fuel_profile=hold)
+        if k % stride == 0:
+            times.append(sim.t); te_fr.append(sim.Te.copy()); ti_fr.append(sim.Ti.copy())
+    te_fr, ti_fr, times = np.array(te_fr), np.array(ti_fr), np.array(times)
+    d = sim.diagnostics()
+    tau_eq = tr.equipartition_time(d["n0"], d["Te0"])
+    print(f"  [burn_1d_two_temperature] steady Ti0 = {d['Ti0']:.1f} keV, "
+          f"Te0 = {d['Te0']:.1f} keV, Ti/Te = {d['Ti0']/d['Te0']:.2f}, "
+          f"tau_eq(core) = {tau_eq*1e3:.0f} ms")
+    frames = np.stack([te_fr, ti_fr], axis=1)            # (n_t, 2, n_rho)
+    out = anim.animate_profiles(
+        sim.rho, frames, times, path=f"{OUT}/burn_1d_two_temperature.gif",
+        labels=[r"$T_e$ (electrons)", r"$T_i$ (ions, NBI-heated)"],
+        xlabel=r"$\rho = r/a$", ylabel="T [keV]",
+        title="Two-temperature burn: ions hotter than electrons", fps=20, dpi=90)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
+    "burn_1d_two_temperature": burn_1d_two_temperature,
 }
 
 

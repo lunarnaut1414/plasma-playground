@@ -19,9 +19,17 @@ Two modes:
           Produces time traces, profile snapshots, and a poloidal cross-section
           montage (the "watch it burn" picture).
 
+  ash     (F1) 0-D burn with helium ash, fuel dilution and a soft beta-limit.
+
+  twotemp (F2.5) 1-D two-temperature burn: separate Te and Ti with collisional
+          (Spitzer) equipartition. Neutral beams heat the ions, fusion alphas heat
+          the electrons, so the beam-heated plasma settles at Ti > Te.
+
 Run:
     python run.py                 # 1-D burn arc (three phases)
     python run.py --mode zerod    # 0-D ignition / Lawson demo
+    python run.py --mode ash      # 0-D ash + dilution + beta-limit
+    python run.py --mode twotemp  # 1-D two-temperature (Te, Ti) burn
     python run.py --save          # write figures to ./outputs/
 """
 
@@ -175,6 +183,61 @@ def _plot_ash(r, beta_lim, t_ign, save):
     ax[1].legend(loc="center right")
     fig.tight_layout()
     _finish(fig, save, "burn_0d_ash.png")
+
+
+# ---------------------------------------------------------------------------
+# F2.5 — two temperatures (Te, Ti): equipartition + a heating mix
+# ---------------------------------------------------------------------------
+def run_twotemp(save=False, n_grid=129):
+    print("\n--- 1-D two-temperature burn (F2.5): Te vs Ti + equipartition ---")
+
+    # (1) the coupling clock: Spitzer equipartition time matches the NRL formula
+    tau_eq = tr.equipartition_time(1.0e20, 10.0, z_eff=1.0, mu_i=2.5)
+    print(f"  equipartition time @ n=1e20, Te=10 keV: tau_eq = {tau_eq*1e3:.0f} ms "
+          f"(Spitzer/NRL ~ 230 ms)")
+
+    # (2) with no differential heating Te and Ti relax to their mean (energy conserved)
+    relax = tr.two_temperature_relax_0d(1.0e20, 12.0, 4.0, t_end=2.0, dt=1e-4)
+    Tmean = 0.5 * (12.0 + 4.0)
+    print(f"  0-D relaxation (Te0=12, Ti0=4 keV) -> Te={relax['T_e'][-1]:.2f}, "
+          f"Ti={relax['T_i'][-1]:.2f} keV  (both -> mean {Tmean:.0f})")
+
+    # (3) the 1-D beam-heated discharge: NBI to ions, alphas to electrons -> Ti > Te
+    sim = tr.TwoTempTransport1D(A_MINOR, n_grid=n_grid, chi_e=0.8, chi_i=0.4, D=0.06,
+                                mu_i=2.5, Te_edge=0.1, Ti_edge=0.1, n_edge=2e19)
+    sim.set_state(Te=2.0, Ti=2.0, n=8e19)
+    hold = tr.gaussian_deposition(sim.rho, 0.0, 0.4)
+    nbi = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
+    dt = 4e-3
+    for _ in range(int(round(12.0 / dt))):
+        p_i = 6.0e5 * (0.3 + 0.7 * min(sim.t / 4.0, 1.0))
+        sim.step(dt, p_aux_i_total=p_i, p_aux_e_total=1.0e5, aux_i_profile=nbi,
+                 frac_alpha_e=0.85, fuel_total=8e19 / 6.0, fuel_profile=hold)
+    d = sim.diagnostics()
+    print(f"  steady beam-heated core: Ti0 = {d['Ti0']:.1f} keV, Te0 = {d['Te0']:.1f} keV, "
+          f"Ti/Te = {d['Ti0']/d['Te0']:.2f}  (ions hotter, as in beam-heated plasmas)")
+    print(f"  fusion follows Ti, brem follows Te: P_fusion = "
+          f"{d['P_fusion']*PLASMA_VOLUME/1e6:.1f} MW, P_brem = "
+          f"{d['P_brem']*PLASMA_VOLUME/1e6:.2f} MW")
+
+    _plot_twotemp(sim, relax, save)
+
+
+def _plot_twotemp(sim, relax, save):
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4.6))
+    ax[0].plot(sim.rho, sim.Ti, color="crimson", label=r"$T_i$ (ions, NBI)")
+    ax[0].plot(sim.rho, sim.Te, color="navy", label=r"$T_e$ (electrons)")
+    ax[0].set(xlabel=r"$\rho = r/a$", ylabel="T [keV]",
+              title="Steady profiles: ions hotter than electrons")
+    ax[0].legend()
+    ax[1].plot(relax["t"], relax["T_e"], color="navy", label=r"$T_e$")
+    ax[1].plot(relax["t"], relax["T_i"], color="crimson", label=r"$T_i$")
+    ax[1].axhline(8.0, ls=":", color="k", lw=0.9, label="mean")
+    ax[1].set(xlabel="t [s]", ylabel="T [keV]",
+              title="0-D collisional relaxation toward equipartition")
+    ax[1].legend()
+    fig.tight_layout()
+    _finish(fig, save, "burn_1d_two_temperature.png")
 
 
 # ---------------------------------------------------------------------------
@@ -332,6 +395,8 @@ def main(mode="burn", save=False, n_grid=129):
         run_zerod(save=save)
     elif mode == "ash":
         run_ash(save=save)
+    elif mode == "twotemp":
+        run_twotemp(save=save, n_grid=n_grid)
     else:
         run_burn(save=save, n_grid=n_grid)
 
@@ -339,7 +404,7 @@ def main(mode="burn", save=False, n_grid=129):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--mode", choices=["burn", "zerod", "ash"], default="burn")
+    p.add_argument("--mode", choices=["burn", "zerod", "ash", "twotemp"], default="burn")
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--n-grid", type=int, default=129)
     args = p.parse_args()

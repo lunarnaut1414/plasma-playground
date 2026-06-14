@@ -1,9 +1,9 @@
 # 09 — Burning plasma (transport) — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** F0 + F1 + F2 implemented (`run.py`), kernel `plasmaplay/transport.py`,
-> tests `tests/test_transport.py` (22 passing). F3 (couple to the experiment-04
-> equilibrium) next.
+> **Status:** F0 + F1 + F2 + F2.5 implemented (`run.py`), kernel
+> `plasmaplay/transport.py`, tests `tests/test_transport.py` (29 passing). F3
+> (couple to the experiment-04 equilibrium) next.
 
 ## The question
 
@@ -82,6 +82,29 @@ finite differences. A flux-surface-averaged radial coordinate ρ = r/a.
   monotonically peaked; fuelling raises ⟨n⟩; reduces to the F0 power balance when
   volume-averaged. *(tests)*
 - **Compute:** seconds; pure NumPy, single core.
+
+### F2.5 — Two-temperature (Te, Ti) + heating mix  ✅ implemented (`--mode twotemp`)
+- **Models:** `transport.TwoTempTransport1D` evolves T_e(ρ,t), T_i(ρ,t), n(ρ,t) with
+  separate heat diffusivities χ_e, χ_i and a collisional energy-exchange term
+  `equipartition_power` Q_Δ = 3(m_e/m_i)n_e ν_ei k_B(T_e−T_i) (Braginskii/Spitzer).
+  The split single-T transport hides: **fusion follows T_i** (it is an ion
+  reaction), **bremsstrahlung follows T_e**, fusion alphas heat mostly electrons
+  (f_αe≈0.85) while **neutral-beam / RF-ion heating heats the ions** — so a
+  beam-heated plasma runs T_i > T_e until equipartition closes the gap.
+- **Method & tools:** reuses the parent's implicit (Thomas) diffusion per channel;
+  explicit sources; the Spitzer ν_e is the NRL Plasma-Formulary collision rate.
+  `equipartition_time` = 1/(4(m_e/m_i)ν_ei) and `two_temperature_relax_0d` (a 0-D
+  relaxation) are the validation anchors.
+- **You'll learn:** why real plasmas run T_i ≠ T_e; the equipartition time that sets
+  how fast the channels couple (∝ T_e^{3/2}/n_e); why beam-heated discharges
+  (TFTR/JET supershots) reach T_i/T_e ~ 2.
+- **Validation:** τ_eq @ n=1e20, Te=10 keV = 231 ms (matches the Spitzer formula,
+  ~230 ms); a 0-D split relaxes to the energy-conserving mean at the formula rate;
+  the 1-D beam-heated discharge settles at T_i0=24 keV > T_e0=13 keV (T_i/T_e=1.89).
+  *(7 tests)*
+- **Deliverable:** `outputs/burn_1d_two_temperature.gif` — T_e(ρ,t) and T_i(ρ,t)
+  profiles separating as the NBI heats the ions; `burn_1d_two_temperature.png` still.
+- **Compute:** seconds; pure NumPy.
 
 ### F3 — On the real equilibrium  ◻ not yet (the next rung)
 - **Models:** run the F2 transport on flux-surface-averaged coordinates of the

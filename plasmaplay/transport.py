@@ -40,6 +40,7 @@ from __future__ import annotations
 import numpy as np
 
 from .constants import e as E  # elementary charge (J per eV)
+from .constants import m_e as M_E, m_p as M_P  # electron / proton mass [kg]
 
 # ---------------------------------------------------------------------------
 # Energetics of the D-T reaction
@@ -522,6 +523,205 @@ class Transport1D:
             "T_avg": self._vol_avg(self.T), "T0": self.T[0],
             "n_avg": self._vol_avg(self.n), "n0": self.n[0],
             "P_alpha": p_alpha, "P_fusion": p_fus, "P_brem": p_brem, "W": W,
+        }
+
+
+# ---------------------------------------------------------------------------
+# F2.5 — two temperatures (Te, Ti): Spitzer equipartition + a heating mix
+# ---------------------------------------------------------------------------
+# Single-temperature transport hides three facts: fusion is an *ion* reaction
+# (the burn rate and alpha power follow T_i), bremsstrahlung is an *electron*
+# loss (it follows T_e), and the two species exchange energy only collisionally,
+# on the Spitzer equipartition time. When the heating is lopsided — neutral beams
+# and RF deposit on ions, fusion alphas slow down mostly on electrons — the two
+# temperatures separate, and a beam-heated plasma runs T_i > T_e. These helpers
+# add that physics; the coupling term Q_Delta is the validation anchor.
+def coulomb_logarithm(n_e, T_e_keV):
+    """Electron-ion Coulomb logarithm lnLambda (NRL Plasma Formulary, T_e>10 eV).
+
+    lnLambda = 24 - ln( sqrt(n_e[cm^-3]) / T_e[eV] ), with n_e in m^-3 and T_e in
+    keV on input. It is weakly varying (~15-20 for fusion plasmas) and sets the
+    overall scale of every Coulomb collision rate.
+    """
+    n_cm3 = np.asarray(n_e, dtype=float) * 1e-6
+    T_eV = np.asarray(T_e_keV, dtype=float) * 1e3
+    return 24.0 - np.log(np.sqrt(n_cm3) / T_eV)
+
+
+def collision_frequency_ei(n_e, T_e_keV, z_eff=1.0, coulomb_log=None):
+    """Spitzer electron collision frequency nu_e [s^-1] (NRL Plasma Formulary).
+
+        nu_e = 2.91e-6 * Z * n_e[cm^-3] * lnLambda * T_e[eV]^(-3/2)
+
+    This is the electron-ion momentum collision rate (~ 1/tau_e), the clock that
+    times collisional energy exchange between the species. Vectorized over inputs.
+    """
+    n_cm3 = np.asarray(n_e, dtype=float) * 1e-6
+    T_eV = np.asarray(T_e_keV, dtype=float) * 1e3
+    lnL = coulomb_logarithm(n_e, T_e_keV) if coulomb_log is None else coulomb_log
+    return 2.91e-6 * z_eff * n_cm3 * lnL * T_eV ** (-1.5)
+
+
+def equipartition_power(n_e, T_e_keV, T_i_keV, *, z_eff=1.0, mu_i=2.5,
+                        coulomb_log=None):
+    """Collisional electron->ion energy-exchange power density [W/m^3] (Braginskii).
+
+        Q_Delta = 3 (m_e/m_i) n_e nu_ei k_B (T_e - T_i)
+
+    Positive when the electrons are hotter (they heat the ions); it flips sign and
+    vanishes at T_e = T_i. m_i = mu_i * m_p (mu_i ~ 2.5 amu for a 50:50 D-T mix).
+    This is the only term that drags T_e and T_i toward each other.
+    """
+    n_e = np.asarray(n_e, dtype=float)
+    nu = collision_frequency_ei(n_e, T_e_keV, z_eff, coulomb_log)
+    m_ratio = M_E / (mu_i * M_P)
+    dT = np.asarray(T_e_keV, dtype=float) - np.asarray(T_i_keV, dtype=float)
+    return 3.0 * m_ratio * n_e * nu * dT * 1e3 * E
+
+
+def equipartition_time(n_e, T_e_keV, *, z_eff=1.0, mu_i=2.5, coulomb_log=None):
+    """e-folding time [s] of the temperature difference (T_e - T_i) at n_e = n_i.
+
+    Substituting Q_Delta into the two energy equations (each species has heat
+    capacity 3/2 n) gives d(T_e - T_i)/dt = -(T_e - T_i)/tau_eq with
+
+        tau_eq = 1 / ( 4 (m_e/m_i) nu_ei ).
+
+    It scales as T_e^{3/2}/n_e: hot, thin plasmas equilibrate slowly, which is
+    exactly why they can sustain T_i != T_e long enough to matter.
+    """
+    nu = collision_frequency_ei(n_e, T_e_keV, z_eff, coulomb_log)
+    m_ratio = M_E / (mu_i * M_P)
+    return 1.0 / (4.0 * m_ratio * nu)
+
+
+def two_temperature_relax_0d(n_e, Te0, Ti0, *, z_eff=1.0, mu_i=2.5,
+                             t_end=1.0, dt=1e-4):
+    """0-D collisional relaxation of (T_e, T_i) toward a common temperature.
+
+    No heating, no transport — only the equipartition exchange Q_Delta. At fixed
+    n_e = n_i the total energy (3/2) n (T_e + T_i) is conserved and T_e, T_i relax
+    to their mean on ~tau_eq. This is the clean validation anchor for the coupling:
+    the measured difference-decay rate must match `equipartition_time`. Forward
+    Euler (the exchange is gentle for dt << tau_eq). Returns dict: t, T_e, T_i [keV].
+    """
+    nstep = int(round(t_end / dt))
+    t = np.empty(nstep + 1)
+    Te = np.empty(nstep + 1)
+    Ti = np.empty(nstep + 1)
+    Te[0], Ti[0], t[0] = float(Te0), float(Ti0), 0.0
+    cap = 1.5 * float(n_e) * 1e3 * E      # heat capacity per species [J/m^3/keV]
+    for k in range(nstep):
+        q = equipartition_power(n_e, Te[k], Ti[k], z_eff=z_eff, mu_i=mu_i)
+        Te[k + 1] = Te[k] - dt * q / cap
+        Ti[k + 1] = Ti[k] + dt * q / cap
+        t[k + 1] = t[k] + dt
+    return {"t": t, "T_e": Te, "T_i": Ti}
+
+
+class TwoTempTransport1D(Transport1D):
+    """1-D transport with separate electron and ion temperatures (the F2.5 rung).
+
+    Evolves T_e(rho,t), T_i(rho,t) and n(rho,t). Each temperature channel diffuses
+    with its own heat diffusivity, the two exchange energy collisionally, and they
+    receive different heating:
+
+        (3/2) d(n T_e)/dt = div(chi_e grad T_e) + p_aux_e + f_ae p_alpha - p_brem - Q
+        (3/2) d(n T_i)/dt = div(chi_i grad T_i) + p_aux_i + (1-f_ae) p_alpha       + Q
+
+    with Q = equipartition_power(n, T_e, T_i). The split that single-T transport
+    cannot represent: p_alpha and the burn use the *ion* temperature (fusion is an
+    ion reaction); p_brem uses the *electron* temperature; fusion alphas slow down
+    predominantly on electrons (f_ae ~ 0.8-0.9), while neutral-beam / RF-ion heating
+    lands on the ions — so a beam-heated burning plasma settles at T_i > T_e until
+    equipartition closes the gap. Mirrors `Transport1D`'s implicit-diffusion /
+    explicit-source split and reuses its tridiagonal solver.
+    """
+
+    def __init__(self, a, n_grid=129, *, chi_e=1.0, chi_i=0.5, D=0.4, z_eff=1.0,
+                 mu_i=2.5, Te_edge=0.1, Ti_edge=0.1, n_edge=2e19):
+        super().__init__(a, n_grid, chi=chi_e, D=D, z_eff=z_eff,
+                         T_edge=Te_edge, n_edge=n_edge)
+        self.chi_e = chi_e
+        self.chi_i = chi_i
+        self.mu_i = mu_i
+        self.Te_edge = Te_edge
+        self.Ti_edge = Ti_edge
+        self.Te = np.full(n_grid, Te_edge)
+        self.Ti = np.full(n_grid, Ti_edge)
+
+    def set_state(self, Te, Ti, n):
+        """Set initial electron/ion temperature and density profiles (arrays or scalars)."""
+        self.Te = np.broadcast_to(np.asarray(Te, float), self.rho.shape).astype(float).copy()
+        self.Ti = np.broadcast_to(np.asarray(Ti, float), self.rho.shape).astype(float).copy()
+        self.n = np.broadcast_to(np.asarray(n, float), self.rho.shape).astype(float).copy()
+        self.Te[-1] = self.Te_edge
+        self.Ti[-1] = self.Ti_edge
+        self.n[-1] = self.n_edge
+        self.T = self.Te                    # keep the parent single-T attribute sane
+        return self
+
+    def step(self, dt, *, p_aux_e_total=0.0, p_aux_i_total=0.0, aux_e_profile=None,
+             aux_i_profile=None, frac_alpha_e=0.85, fuel_total=0.0, fuel_profile=None):
+        """Advance T_e, T_i, n by dt seconds.
+
+        p_aux_e_total / p_aux_i_total : electron- and ion-channel heating power-density
+            scales [W/m^3] multiplied into their (normalized) deposition profiles —
+            e.g. RF/ohmic to electrons, neutral-beam to ions.
+        frac_alpha_e : fraction of the 3.5 MeV alpha power deposited on electrons
+            (the rest on ions); ~0.85 for a hot D-T plasma.
+        fuel_total / fuel_profile : as in `Transport1D.step`.
+        """
+        rho = self.rho
+        if aux_e_profile is None:
+            aux_e_profile = gaussian_deposition(rho, 0.0, 0.35)
+        if aux_i_profile is None:
+            aux_i_profile = gaussian_deposition(rho, 0.0, 0.35)
+        if fuel_profile is None:
+            fuel_profile = gaussian_deposition(rho, 0.0, 0.3)
+
+        n, Te, Ti = self.n, self.Te, self.Ti
+
+        # particle transport (implicit) + fuelling (explicit)
+        n_new = self._diffuse(n, self.D, dt, self.n_edge)
+        n_new = n_new + dt * fuel_total * fuel_profile
+        n_new[-1] = self.n_edge
+        n_new = np.maximum(n_new, 1e16)
+
+        # conduction (implicit) of each temperature channel with its own chi
+        Te_diff = self._diffuse(Te, self.chi_e, dt, self.Te_edge)
+        Ti_diff = self._diffuse(Ti, self.chi_i, dt, self.Ti_edge)
+
+        # explicit sources/sinks: fusion follows T_i, brem follows T_e, Q couples them
+        p_alpha = fusion_power_density(n, Ti, "alpha")
+        p_brem = bremsstrahlung_density(n, Te, self.z_eff)
+        q_ei = equipartition_power(n, Te, Ti, z_eff=self.z_eff, mu_i=self.mu_i)
+        p_e = p_aux_e_total * aux_e_profile + frac_alpha_e * p_alpha - p_brem - q_ei
+        p_i = p_aux_i_total * aux_i_profile + (1.0 - frac_alpha_e) * p_alpha + q_ei
+
+        cap = 1.5 * n_new * 1e3 * E          # heat capacity per species [J/m^3/keV]
+        Te_new = Te_diff + dt * p_e / cap
+        Ti_new = Ti_diff + dt * p_i / cap
+        Te_new = np.maximum(Te_new, self.Te_edge)
+        Ti_new = np.maximum(Ti_new, self.Ti_edge)
+        Te_new[-1] = self.Te_edge
+        Ti_new[-1] = self.Ti_edge
+
+        self.n, self.Te, self.Ti, self.T = n_new, Te_new, Ti_new, Te_new
+        self.t += dt
+        return self
+
+    def diagnostics(self):
+        """Volume-integrated two-temperature scalars: <Te>, <Ti>, on-axis values,
+        <n>, and the (ion-temperature) fusion / (electron) brem powers."""
+        return {
+            "t": self.t,
+            "Te_avg": self._vol_avg(self.Te), "Te0": self.Te[0],
+            "Ti_avg": self._vol_avg(self.Ti), "Ti0": self.Ti[0],
+            "n_avg": self._vol_avg(self.n), "n0": self.n[0],
+            "P_alpha": self._vol_avg(fusion_power_density(self.n, self.Ti, "alpha")),
+            "P_fusion": self._vol_avg(fusion_power_density(self.n, self.Ti, "total")),
+            "P_brem": self._vol_avg(bremsstrahlung_density(self.n, self.Te, self.z_eff)),
         }
 
 

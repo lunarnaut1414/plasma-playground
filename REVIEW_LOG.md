@@ -222,6 +222,59 @@ Did: TWEAK. xlabel "r/a"->"x", cyan line, title -> "G1 smoke test: 1-D diffusion
 Verify: regenerated (mass drift 9.08e-3, peak-law err 2.2e-16 — unchanged); re-dumped+Read
 — clean dark Gaussian. No new test (style-only). Next: R-final sweep.
 
+## R-final — house-style sweep + closing — DONE
+Regenerated ALL 11 gifs fresh (gif_gallery.py all) — every gif now renders on the shared
+dark "plasma" house style. gallery.png is the EXPERIMENT-stills montage (separate concern,
+not a gif montage) — left untouched. pytest 211 passed; ruff clean.
+
+### Final scores (A=Correct B=Paced C=Legible D=Pretty), before -> after
+| gif | verdict | before | after | size |
+|-----|---------|--------|-------|------|
+| tokamak_3d_discharge (hero) | REWORK | A2 B2 C2 D1 | A4 B4 C5 D5 | 4.3 MB |
+| tearing_island_saturation (hero) | TWEAK | A5 B4 C3 D2 | A5 B4 C5 D5 | 2.6 MB |
+| stellarator_flux_surfaces (hero) | REWORK | A5 B3 C3 D2 | A5 B4 C4 D5 | 5.7 MB |
+| tokamak_discharge_full (hero) | TWEAK | A5 B5 C4 D2 | A5 B5 C5 D5 | 3.5 MB |
+| stellarator_burn | TWEAK | A5 B5 C4 D2 | A5 B5 C5 D5 | 2.0 MB |
+| kink_eigenmode | TWEAK | A4 B4 C4 D2 | A5 B4 C5 D5 | 1.1 MB |
+| operating_modes | TWEAK | A5 B5 C4 D2 | A5 B5 C5 D5 | 0.5 MB |
+| burn_dshaped_cross_section | TWEAK | A5 B5 C4 D3 | A5 B5 C5 D4 | 1.3 MB |
+| burn_1d_two_temperature | TWEAK | A5 B5 C4 D2 | A5 B5 C5 D5 | 0.7 MB |
+| burn_0d_ignition | TWEAK | A5 B5 C3 D2 | A5 B5 C5 D5 | 0.5 MB |
+| _smoke_diffusion | TWEAK | A5 B5 C4 D3 | A5 B5 C5 D5 | 0.7 MB |
+
+2 REWORK, 9 TWEAK, 0 KEEP-as-was, 0 DEFER-unaddressed. Every gif: correct, ≥4 on all axes,
+one consistent dark "plasma" look.
+
+### What changed (themes)
+- **A real correctness fix (hero):** the 3-D discharge's hot core was INVISIBLE (hidden in
+  the cold outer shell) — reworked to a glowing torus + face-on T(rho) bullseye; the ~179
+  sawtooth crashes now read as a ⚡flash + counter instead of aliasing onto 100 frames.
+- **A tooling bug fixed first:** scripts/_dump_frames.py was returning the final frame for
+  every sample (list(ImageSequence.Iterator) gotcha) — fixed to seek+copy, so every rung's
+  review was based on real frames.
+- **Honesty:** kink_eigenmode now discloses its growth envelope is illustrative (eigenfunction
+  exact); did NOT invent an ideal-kink gamma. D-shaped burn: reverted an overreach that
+  cooled the documented showcase rather than fake a triangular D.
+- **One designed set:** shared anim.apply_house_style (dark bg, light furniture) + dark
+  support threaded into ALL shared renderers (animate_profiles, _phase_track,
+  _operating_space, _poloidal_field, + new animate_discharge_3d). cmap convention enforced
+  (inferno=T everywhere — fixed stellarator_burn's stray viridis). Persistent t= readouts,
+  colorbars added where missing, panels tied together (W<->island, ignition<->Lawson band),
+  contrasts quantified (179 vs 0 crashes), dpi 90->110/120 on the heroes, seamless cameras.
+- **Tests:** 206 -> 211 (+5: animate_discharge_3d, apply_house_style, operating_space,
+  poloidal_field, profiles-shade; phase-track band path covered). Never fabricated a number.
+
+### Open / DEFER (not blockers)
+- burn_dshaped D-axis stays 4: the Solov'ev equilibrium genuinely isn't a triangular D
+  (rectangular-ish flux surfaces). A true D needs triangularity in the GS solve (data-path
+  change + re-validate) — DEFER to a physics rung, not a polish pass.
+- stellarator_flux_surfaces at 5.7 MB is near the 6 MB cap; fine, but if it grows, drop
+  dpi 120->110 or trim a few lines.
+- All gifs committed as CODE only (outputs/ gitignored). Nothing pushed (awaiting user).
+
+THE GIF REVIEW/POLISH LOOP IS COMPLETE (R0–R11 + R-final). 211 tests, ruff clean, 11
+gifs on one consistent dark house style.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

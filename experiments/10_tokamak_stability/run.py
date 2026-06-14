@@ -30,7 +30,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plasmaplay import cylinder_mhd as cm, plotting
+from plasmaplay import cylinder_mhd as cm, plotting, reduced_mhd as rm, tearing as tg
 
 
 def main(save=False):
@@ -104,9 +104,67 @@ def _plot(save):
     plt.close(fig)
 
 
+def run_island(save=False):
+    """B2 nonlinear reduced-MHD demo: a tearing mode grows and reconnects an island.
+
+    Prints the linear-phase validation (FKR S^-3/5 scaling, reproduced by direct
+    simulation) and renders the flux contours of the reconnected island."""
+    print("\n--- B2: nonlinear reduced MHD — tearing mode -> magnetic island ---")
+    k = 0.5
+    print(f"  Harris sheet, k={k} (k a < 1 -> Delta'={tg.delta_prime_analytic(k):.2f} > 0, unstable)")
+
+    # linear growth & the FKR S^-3/5 scaling, measured from direct simulation
+    def gamma(S, t_end=55, dt=0.008):
+        s = rm.ReducedMHD(k, S=S, Pm=0.0, nx=224, ny=16, Lx=4.0).seed(1e-6)
+        ts, amps = [], []
+        for i in range(int(t_end / dt)):
+            s.step(dt)
+            if i % 40 == 0:
+                ts.append(s.t); amps.append(s.mode_amplitude())
+        ts, amps = np.array(ts), np.array(amps)
+        return float(np.median(np.gradient(np.log(amps), ts)[len(ts) // 2:]))
+
+    g_lo, g_hi = gamma(400.0), gamma(1600.0)
+    expo = np.log(g_hi / g_lo) / np.log(4.0)
+    print(f"  growth: gamma(S=400)={g_lo:.3e}, gamma(S=1600)={g_hi:.3e}")
+    print(f"  -> S-scaling exponent = {expo:.3f}  (FKR S^-3/5 = -0.600)")
+
+    # run into the early-nonlinear regime to render the island structure
+    sim = rm.ReducedMHD(k, S=400.0, Pm=0.0, nx=224, ny=48, Lx=4.0).seed(5e-3)
+    sim.run(120.0, 0.008)
+    print(f"  island width W = {sim.island_width():.3f} (sheet widths) at t={sim.t:.0f}")
+    print("  NOTE: the Rutherford *saturation* (W -> W_sat) is the follow-on rung (B2b)")
+    _plot_island(sim, save)
+
+
+def _plot_island(sim, save):
+    yext = np.concatenate([sim.y, [sim.Ly]])
+    psi = np.concatenate([sim.flux_function(), sim.flux_function()[:, :1]], axis=1)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    cs = ax.contour(yext, sim.x, psi, levels=40, colors="k", linewidths=0.6)
+    ax.contourf(yext, sim.x, psi, levels=40, cmap="RdBu_r")
+    ax.axhline(0.0, color="0.4", ls=":", lw=0.8)
+    ax.set(xlabel="y", ylabel="x", ylim=(-2.5, 2.5),
+           title="Reconnected magnetic island (flux contours)")
+    fig.colorbar(cs, ax=ax, label=r"$\psi$", shrink=0.85)
+    fig.tight_layout()
+    if save:
+        out = plotting.ensure_outputs_dir(__file__) / "tearing_island.png"
+        fig.savefig(out, dpi=130, bbox_inches="tight")
+        print(f"  saved {out}")
+    else:
+        plt.show()
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
+    p.add_argument("--island", action="store_true",
+                   help="run the B2 nonlinear reduced-MHD tearing-island demo")
     args = p.parse_args()
-    main(save=args.save)
+    if args.island:
+        run_island(save=args.save)
+    else:
+        main(save=args.save)

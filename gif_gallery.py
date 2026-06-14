@@ -25,7 +25,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter  # noqa: E402
 
 from plasmaplay import (  # noqa: E402
     animate as anim, cylinder_mhd as cm, equilibrium_metrics as em,
-    operating_limits as ol, transport as tr,
+    operating_limits as ol, reduced_mhd as rm, transport as tr,
 )
 from plasmaplay.solvers import grad_shafranov_solve  # noqa: E402
 
@@ -288,6 +288,44 @@ def kink_eigenmode():
     print(f"  wrote {out}")
 
 
+def tearing_island():
+    """B2 (reduced MHD): a tearing mode reconnects the Harris sheet into a magnetic
+    island. Flux contours over time — the neutral line tears open into the island's
+    X-point/O-point chain as the mode grows. The linear phase obeys the FKR S^-3/5
+    law (validated in tests); the Rutherford saturation is the follow-on rung (B2b)."""
+    k = 0.5
+    sim = rm.ReducedMHD(k, S=400.0, Pm=0.0, nx=192, ny=64, Lx=4.0).seed(3e-4)
+    dt, t_end, nframes = 0.008, 170.0, 80
+    stride = max(1, int(t_end / dt) // nframes)
+    yext = np.concatenate([sim.y, [sim.Ly]])
+    frames, times = [], []
+    for i in range(int(t_end / dt)):
+        sim.step(dt)
+        if i % stride == 0:
+            psi = sim.flux_function()
+            frames.append(np.concatenate([psi, psi[:, :1]], axis=1))
+            times.append(sim.t)
+    print(f"  [tearing_island] k={k}, Delta'>0; island width W={sim.island_width():.3f} "
+          f"at t={sim.t:.0f} (saturation = B2b)")
+
+    fig, ax = plt.subplots(figsize=(6.4, 5.0))
+    mask = np.abs(sim.x) <= 2.5
+
+    def draw(j):
+        ax.clear()
+        ax.contourf(yext, sim.x[mask], frames[j][mask], levels=40, cmap="RdBu_r")
+        ax.contour(yext, sim.x[mask], frames[j][mask], levels=30, colors="k",
+                   linewidths=0.5)
+        ax.axhline(0.0, color="0.4", ls=":", lw=0.8)
+        ax.set(xlabel="y", ylabel="x", title=f"Tearing -> island   t = {times[j]:.0f}")
+
+    an = FuncAnimation(fig, draw, frames=len(frames), blit=False)
+    out = f"{OUT}/tearing_island.gif"
+    an.save(out, writer=PillowWriter(fps=16), dpi=90)
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
@@ -295,6 +333,7 @@ GALLERY = {
     "burn_dshaped_cross_section": burn_dshaped_cross_section,
     "operating_modes": operating_modes,
     "kink_eigenmode": kink_eigenmode,
+    "tearing_island": tearing_island,
 }
 
 

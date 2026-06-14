@@ -1,9 +1,9 @@
 # 10 — Tokamak MHD stability — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** B1 implemented (cylinder linear stability), kernel
-> `plasmaplay/cylinder_mhd.py`, tests `tests/test_cylinder_mhd.py` (14 passing).
-> B2 (nonlinear island saturation) and B3 (sawtooth cycle) next.
+> **Status:** B1 implemented (cylinder linear stability, `cylinder_mhd.py`, 14 tests);
+> B2 linear phase implemented (`reduced_mhd.py`, 3 tests) — the nonlinear Rutherford
+> saturation (B2b) and B3 (sawtooth cycle) are next.
 
 ## The question
 
@@ -35,11 +35,21 @@ later, toroidal rungs.)
 - **Deliverable:** `outputs/kink_eigenmode.gif` — the m=1 internal kink: the core
   shifting into the characteristic crescent; `kink_eigenmode.png` still.
 
-### B2 — Nonlinear reduced-MHD island saturation  ◻ not yet
-- **Models:** evolve ψ and vorticity in (r,θ) for one n with resistivity; watch a
-  tearing island grow and **saturate** (Rutherford `dW/dt ∝ Δ′(W)`).
-- **Validation:** linear phase matches B1 growth; island width saturates at Δ′(W)=0.
-- **Deliverable:** `tearing_island_saturation.gif`.
+### B2 — Nonlinear reduced-MHD island  ◧ linear phase done; saturation = B2b
+- **Models:** `plasmaplay/reduced_mhd.py` — the Strauss reduced-MHD equations (ψ and
+  vorticity U=∇²φ) on a 2-D slab (x finite-difference, y spectral, FFT+tridiagonal
+  elliptic solve for φ), on the Harris sheet of T4. A tearing mode grows and
+  reconnects an island.
+- **Validation (done):** the elliptic inversion is exact; a seeded mode grows for
+  ka<1 and decays for ka>1; the linear growth rate obeys **γ ∝ S^(−3/5)** (measured
+  exponent −0.58) — the FKR layer law, by direct simulation. *(3 tests)* The absolute
+  rate is ~0.54× the T4 eigenvalue (an O(1) convention difference; scaling, not the
+  value, is asserted).
+- **Deliverable (partial):** `outputs/tearing_island.gif` — the sheet tearing into an
+  island; `tearing_island.png` still (`run.py --island`).
+- **B2b (next):** the nonlinear **Rutherford saturation** — island width W(t)
+  following dW/dt ∝ Δ′(W) and saturating at Δ′(W_sat)=0 — and the
+  `tearing_island_saturation.gif`.
 
 ### B3 — The sawtooth cycle (Kadomtsev)  ◻ not yet
 - **Models:** when q(0)<1, an m=1 reconnection flattens the core (helical-flux

@@ -31,6 +31,27 @@ closing summary). Loop continues ONLY while ScheduleWakeup keeps firing the REVI
 
 <!-- rung entries below this line -->
 
+## R1 — tokamak_3d_discharge — REWORK — (pending commit)
+Scores (before): A2 B2 C2 D1  ->  (after): A4 B4 C5 D5
+Saw (before): a dim dark donut, uniform maroon — the hot core (29 keV) was HIDDEN inside
+the opaque cold outer surface (concentric tubes share R0, so from outside you only ever
+see the cold edge). Title clipped ("3-D"->"-D"); muddy grey wireframe; white bg; no crash
+cue. Also fixed a bug in scripts/_dump_frames.py: list(ImageSequence.Iterator) returns
+refs to the same image at the final frame -> every sampled PNG was identical. Now seek+copy.
+Defect: the gif's whole promise (nested surfaces, hot core, sawtooth flatten) was invisible;
+and ~179 crashes aliased onto 100 frames.
+Did: replaced animate_torus_nested with new anim.animate_discharge_3d — a TWO-panel hero:
+(L) glowing rotating torus, whole surface colored by CORE T (donut brightens through the
+burn, dims on crash); (R) face-on poloidal BULLSEYE T(rho) (hot core -> cold edge, crashes
+visibly flatten it). Dark "plasma" house style via new anim.apply_house_style (3-D panes +
+patch darkened, re-applied after ax.clear). Per-frame crash count -> ⚡ flash + running
+"sawteeth: N" counter (so the fast crashes read as activity, not aliasing). Title no longer
+clipped; seamless full-turn camera; dpi 90->120, fps 14->16. gif_gallery now feeds the full
+T(rho) profile + per-frame crash counts.
+Verify: regenerated (179 sawteeth, core 2-30 keV); re-dumped+Read frames — gorgeous and
+correct. pytest 208 passed (+2: discharge_3d + house_style); ruff clean. size 4.5 MB (<6).
+Next: R2 = tearing_island_saturation.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

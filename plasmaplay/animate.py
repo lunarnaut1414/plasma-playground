@@ -60,6 +60,28 @@ def _prepare(path):
     return path
 
 
+HOUSE_BG = "#0e1116"          # the shared "plasma" dark background
+HOUSE_FG = "#f0f0f0"          # light foreground text on that background
+
+
+def apply_house_style(fig, axes=(), *, dark=True):
+    """Apply the gallery's shared 'plasma' look so all gifs read as one designed set.
+
+    Dark figure + axes background with light text (hot colormaps pop against it).
+    Pass the figure and any axes (one, or a list/tuple) to restyle. Returns the
+    text color to use for titles/labels so callers stay consistent. With dark=False
+    it's a no-op that returns black, so a caller can keep one code path.
+    """
+    if not dark:
+        return "black"
+    fig.patch.set_facecolor(HOUSE_BG)
+    if not isinstance(axes, (list, tuple)):
+        axes = [axes]
+    for ax in axes:
+        ax.set_facecolor(HOUSE_BG)
+    return HOUSE_FG
+
+
 def animate_profiles(x, frames, times=None, *, path, labels=None, xlabel="r/a",
                      ylabel="", title="", fps=20, dpi=90, ylim=None):
     """Animate one or several radial line profiles over time, save to `path` (gif).
@@ -322,6 +344,91 @@ def animate_torus_nested(rho_levels, T_rt, times=None, *, path, R0=3.0, a=1.0,
         t = f"   t = {times[i]:.1f} s" if times is not None else ""
         ax.set_title(f"{title}{t}")
 
+    anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
+def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
+                         cmap="inferno", title="", fps=16, dpi=120, vmin=0.0, vmax=None,
+                         crashes=None, dark=True):
+    """Two-panel 3-D discharge: a glowing rotating torus beside its poloidal bullseye.
+
+    `rho` is the normalized minor-radius grid (0..1); `T_rt` is (n_t, n_rho), the
+    temperature profile over time. LEFT: the whole torus surface colored by the CORE
+    temperature `T_rt[:, 0]`, so the donut brightens through the burn and dims on a
+    sawtooth crash (a single honest scalar — the radial structure lives in the right
+    panel, not faked onto the 3-D surface). RIGHT: the face-on poloidal cross-section
+    T(rho) as a filled 'bullseye' (hot core -> cold edge), where each crash visibly
+    flattens the core. `crashes`, if given, is a per-frame count of sawtooth crashes
+    since the previous frame -> a flash + running counter (so the fast crashes read as
+    activity, not aliasing). The torus sweeps a full turn (seamless loop). Returns the
+    saved Path.
+    """
+    rho = np.asarray(rho, dtype=float)
+    T_rt = np.asarray(T_rt, dtype=float)
+    n_t = T_rt.shape[0]
+    vmax = float(T_rt.max()) if vmax is None else vmax
+    norm = plt.Normalize(vmin=vmin, vmax=max(vmax, vmin + 1e-9))
+    cmap_obj = matplotlib.colormaps[cmap]
+    core = T_rt[:, 0]
+    saw_cum = np.cumsum(crashes) if crashes is not None else None
+
+    X, Y, Z = torus_surface(R0, a, n_u, n_v)                 # left: full torus
+    ang = np.linspace(0.0, 2.0 * np.pi, 80)                  # right: polar bullseye mesh
+    Rg, Ag = np.meshgrid(rho, ang, indexing="ij")
+    Xc, Yc = Rg * np.cos(Ag), Rg * np.sin(Ag)
+    levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
+
+    fig = plt.figure(figsize=(10.4, 5.0))
+    axL = fig.add_subplot(1, 2, 1, projection="3d")
+    axR = fig.add_subplot(1, 2, 2)
+    txt = apply_house_style(fig, [axR], dark=dark)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cb = fig.colorbar(sm, ax=axR, label="T [keV]", shrink=0.85, pad=0.02)
+    cb.ax.yaxis.label.set_color(txt)
+    cb.ax.tick_params(colors=txt)
+    cb.outline.set_edgecolor(txt)
+
+    if dark:                                          # 3-D panes -> dark, once
+        for axis in (axL.xaxis, axL.yaxis, axL.zaxis):
+            axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
+
+    def draw(i):
+        axL.clear(); axL.set_axis_off()
+        if dark:
+            axL.patch.set_alpha(0.0)                   # cleared each frame -> re-hide
+        axL.plot_surface(X, Y, Z, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
+                         linewidth=0, antialiased=True, shade=True)
+        rng = R0 + a
+        axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
+        axL.set_box_aspect((1, 1, 1))
+        axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
+        axL.set_title("3-D torus (surface = core T)", color=txt, fontsize=10, pad=0)
+        if crashes is not None and crashes[i] > 0:     # flash over the torus panel
+            axL.text2D(0.5, 0.04, "⚡ sawtooth crash", transform=axL.transAxes,
+                       color="#ffd166", fontsize=13, fontweight="bold", ha="center")
+
+        axR.clear(); axR.set_aspect("equal"); axR.set_xticks([]); axR.set_yticks([])
+        if dark:
+            axR.set_facecolor(HOUSE_BG)
+        Tc = np.broadcast_to(T_rt[i][:, None], Rg.shape)
+        axR.contourf(Xc, Yc, Tc, levels=levels, cmap=cmap, norm=norm, extend="max")
+        axR.plot(np.cos(ang), np.sin(ang), color=txt, lw=0.8, alpha=0.5)
+        axR.set_xlim(-1.12, 1.12); axR.set_ylim(-1.18, 1.12)
+        axR.set_title("poloidal cross-section  T(ρ)", color=txt, fontsize=10)
+        parts = []
+        if times is not None:
+            parts.append(f"t = {times[i]:5.1f} s")
+        if saw_cum is not None:
+            parts.append(f"sawteeth: {int(saw_cum[i]):3d}")
+        if parts:
+            axR.text(0.0, -1.12, "   ".join(parts), color=txt, fontsize=10,
+                     family="monospace", ha="center")
+
+    fig.suptitle(title, color=txt, fontsize=12, y=0.98)
     anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
     out = _prepare(path)
     anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)

@@ -12,9 +12,14 @@ Falsifiable checks:
     non-empty .gif with the requested frame pipeline.
 """
 
+import matplotlib
 import numpy as np
+from PIL import Image
 
-from plasmaplay import animate as anim
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from plasmaplay import animate as anim  # noqa: E402
 
 
 # --- analytic reference: 1-D diffusion of a Gaussian -----------------------
@@ -111,3 +116,28 @@ def test_nested_torus_surface_radii(tmp_path):
     out = anim.animate_torus_nested(rho_levels, T_rt, path=tmp_path / "nested.gif",
                                     fps=6, dpi=60, n_u=30, n_v=18)
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_apply_house_style_dark_and_light():
+    """The shared style sets a dark background + light text when dark, no-op otherwise."""
+    fig, ax = plt.subplots()
+    txt = anim.apply_house_style(fig, ax, dark=True)
+    assert txt == anim.HOUSE_FG
+    assert fig.get_facecolor()[:3] != (1.0, 1.0, 1.0)        # not white
+    plt.close(fig)
+    fig2, ax2 = plt.subplots()
+    assert anim.apply_house_style(fig2, [ax2], dark=False) == "black"
+    plt.close(fig2)
+
+
+def test_animate_discharge_3d_writes_gif(tmp_path):
+    """The two-panel 3-D discharge (glowing torus + bullseye T(rho)) animates a full
+    profile, accepts a per-frame crash count, and writes a multi-frame gif."""
+    rho = np.linspace(0.0, 1.0, 12)
+    T_rt = np.array([(20.0 - 5.0 * k % 7) * (1.0 - rho**2) + 0.5 for k in range(6)])
+    crashes = np.array([0, 1, 0, 2, 0, 1])
+    out = anim.animate_discharge_3d(rho, T_rt, times=np.arange(6.0), crashes=crashes,
+                                    path=tmp_path / "disch.gif", fps=6, dpi=60,
+                                    n_u=30, n_v=18)
+    assert out.exists() and out.stat().st_size > 0
+    assert Image.open(out).n_frames == 6

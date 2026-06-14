@@ -404,20 +404,21 @@ def tokamak_discharge_full():
 
 
 def tokamak_3d_discharge():
-    """C2 (the 3-D showcase): the event-coupled discharge rendered on the 3-D torus —
-    nested flux surfaces colored by their temperature, rotating, with the burn heating
-    the core and the sawtooth crashes visibly flattening it. Reuses the validated
-    coupled-discharge data (Track C) and `animate.animate_torus_nested`."""
+    """C2 (the 3-D showcase): the event-coupled discharge as a CUTAWAY torus — a
+    toroidal wedge is removed so you see the glowing T(rho) cross-section (hot-core
+    bullseye) inside the cold boundary. The burn brightens the core; each sawtooth
+    crash flattens it (a per-frame crash count drives a flash + running counter, so
+    the ~179 crashes read as activity instead of aliasing onto the frames). Reuses
+    the validated Track-C data and `animate.animate_torus_cutaway`."""
     sim = tr.Transport1D(1.0, n_grid=129, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
                          B=5.3, beta_limit=0.04, beta_stiffness=40.0)
     sim.set_state(T=2.0, n=1e20)
     aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
     hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
     pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
-    rho_levels = np.array([0.12, 0.3, 0.5, 0.72, 1.0])
     dt, t_end = 2e-3, 22.0
     stride = max(1, int(t_end / dt) // 100)
-    times, T_rt, n_saw = [], [], 0
+    times, T_rt, crashes, n_saw, saw_since = [], [], [], 0, 0
     for k in range(int(t_end / dt)):
         t = sim.t
         p_aux = 6e5 * (0.3 + 0.7 * min(t / 4.0, 1.0)) if t < 4.0 else 0.0
@@ -427,17 +428,19 @@ def tokamak_3d_discharge():
         sim.step(dt, p_aux_total=p_aux, aux_profile=aux, fuel_total=ft, fuel_profile=fp)
         n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
         if crashed:
-            sim.n, sim.T = n2, T2; n_saw += 1
+            sim.n, sim.T = n2, T2; n_saw += 1; saw_since += 1
         if k % stride == 0:
             times.append(t)
-            T_rt.append(np.interp(rho_levels, sim.rho, sim.T))
-    times, T_rt = np.array(times), np.array(T_rt)
-    print(f"  [tokamak_3d_discharge] {n_saw} sawteeth; core(rho=0.12) T "
-          f"{T_rt[:, 0].min():.0f}-{T_rt[:, 0].max():.0f} keV over the discharge")
-    out = anim.animate_torus_nested(
-        rho_levels, T_rt, times, path=f"{OUT}/tokamak_3d_discharge.gif",
-        R0=3.0, a=1.0, title="3-D discharge: ignition -> burn + sawteeth -> pellet",
-        vmax=float(T_rt.max()), fps=14, dpi=90)
+            T_rt.append(sim.T.copy())            # full T(rho) profile -> bullseye face
+            crashes.append(saw_since); saw_since = 0
+    times, T_rt, crashes = np.array(times), np.array(T_rt), np.array(crashes)
+    print(f"  [tokamak_3d_discharge] {n_saw} sawteeth; core T "
+          f"{T_rt[:, 0].min():.0f}-{T_rt[:, 0].max():.0f} keV over the discharge "
+          f"(per-frame crash count max {crashes.max()})")
+    out = anim.animate_discharge_3d(
+        sim.rho, T_rt, times, path=f"{OUT}/tokamak_3d_discharge.gif",
+        R0=3.0, a=1.0, title="Tokamak discharge: ignition → burn + sawteeth → pellet",
+        vmax=float(T_rt.max()), crashes=crashes, fps=16, dpi=120)
     print(f"  wrote {out}")
 
 

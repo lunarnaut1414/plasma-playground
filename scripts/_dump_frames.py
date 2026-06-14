@@ -7,19 +7,19 @@ Part of the REVIEW.md gif-review loop. outputs/ is gitignored.
 import os
 import sys
 
-from PIL import Image, ImageSequence
+from PIL import Image
 
 
 def main(path):
     im = Image.open(path)
-    frames = list(ImageSequence.Iterator(im))
-    n = len(frames)
+    n = im.n_frames
     name = os.path.splitext(os.path.basename(path))[0]
     out = "outputs/_review"
     os.makedirs(out, exist_ok=True)
     picks = sorted({0, n // 8, n // 4, n // 2, (3 * n) // 4, (7 * n) // 8, n - 1})
     for f in picks:
-        frames[f].convert("RGB").save(f"{out}/{name}_{f:03d}.png")
+        im.seek(f)                                   # seek+copy: do NOT list() the iterator
+        im.convert("RGB").save(f"{out}/{name}_{f:03d}.png")
     print(f"{name}: n_frames={n} per_frame={im.info.get('duration', '?')}ms saved={picks}")
 
 

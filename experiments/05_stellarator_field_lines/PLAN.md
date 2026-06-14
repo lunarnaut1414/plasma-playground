@@ -2,8 +2,9 @@
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
 > **Status:** F1 (screw-pinch, ι from current) + F2 (genuine current-free helical
-> vacuum stellarator, `fields.helical_stellarator`, `--mode stellarator`) implemented.
-> F3 (real coil set via simsopt) is next.
+> vacuum stellarator, `fields.helical_stellarator`, `--mode stellarator`) + the
+> steady-state transport contrast (E2: same burn, q from coils → no sawteeth) are
+> implemented. F3 (real coil set via simsopt) is next.
 
 ## The question
 

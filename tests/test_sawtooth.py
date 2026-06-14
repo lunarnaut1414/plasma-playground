@@ -115,3 +115,17 @@ def test_sawtooth_event_fires_only_on_unstable_core():
     n_out, T_out, crashed_flat = st.sawtooth_event(rho, n, T_flat, q_edge=2.0)
     assert not crashed_flat                               # no event...
     assert np.array_equal(T_out, T_flat) and np.array_equal(n_out, n)  # ...state intact
+
+
+def test_stellarator_burn_is_sawtooth_free():
+    """The tokamak contrast (Track E2): a hot peaked core that triggers a sawtooth in a
+    current-driven tokamak (q from T crosses 1) is sawtooth-FREE in a stellarator, whose
+    q is set by the external coils (q > 1 everywhere) and does not respond to the burn —
+    so there is no q = 1 surface and no kink, ever (inherently steady-state)."""
+    rho = np.linspace(0.0, 1.0, 129)
+    n = np.full_like(rho, 1e20)
+    T_hot = 1.0 - 0.97 * rho ** 2                         # the same hot, peaked core
+    assert st.sawtooth_event(rho, n, T_hot, q_edge=2.0)[2]   # tokamak: crashes
+    q_stell = st.external_q_profile(rho)                  # stellarator: q from coils
+    assert q_stell.min() > 1.0                            # no q = 1 surface...
+    assert st.mixing_radius(rho, q_stell) is None         # ...so no kink / reconnection

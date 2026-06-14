@@ -96,6 +96,21 @@ def q_from_temperature(rho, T, q_edge=3.0, alpha=1.5):
     return q
 
 
+def external_q_profile(rho, q_axis=1.4, q_edge=2.6):
+    """A stellarator's safety factor: set by the EXTERNAL coils, not plasma current.
+
+    In a stellarator the rotational transform comes from the 3-D coil geometry (see
+    `fields.helical_stellarator`) with ~zero net plasma current, so q(rho) is fixed by
+    the device — it does NOT respond to the burning core the way the current-driven
+    tokamak q does (`q_from_temperature`). Modelled as a smooth monotone profile with
+    q_axis on axis and q_edge at the edge. Kept **above 1 everywhere** (q_axis > 1), so
+    there is no q = 1 surface — hence no m=1 internal kink, no sawteeth, no disruptions:
+    the inherently steady-state operation that distinguishes a stellarator from a tokamak.
+    """
+    rho = np.asarray(rho, dtype=float)
+    return q_axis + (q_edge - q_axis) * rho ** 2
+
+
 def crash_profiles(rho, n, T, r_mix):
     """Apply a Kadomtsev crash to a (n, T) burn state inside r_mix, conserving BOTH
     the particle content (int n rho drho) and the thermal energy (int 3 n T rho drho)

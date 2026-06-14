@@ -122,7 +122,16 @@ def run_stellarator(save=False):
                                x0=[0.5, 0.0, 0.0], period=L, n_crossings=40, ds=0.01)
         print(f"    eps={e}: iota = {abs(rotational_transform(pts)):.4f}")
 
-    # (3) nested flux surfaces in the Poincare section
+    # (3) E2 — the steady-state contrast: q from coils (q>1) -> no kink, no sawteeth
+    from plasmaplay import sawtooth as st
+    rho = np.linspace(0.0, 1.0, 65)
+    q_ext = st.external_q_profile(rho)
+    print(f"  E2: stellarator q from coils stays q>1 (min {q_ext.min():.2f}) -> NO "
+          "q=1 surface -> no sawteeth/disruptions (inherently steady-state;")
+    print("      contrast: the same burning core sawteeth ~179x in a current-driven "
+          "tokamak). See gif stellarator_burn.")
+
+    # (4) nested flux surfaces in the Poincare section
     fig = plt.figure(figsize=(11, 5.0))
     axp = fig.add_subplot(1, 2, 1)
     for r0 in (0.15, 0.30, 0.45, 0.60):

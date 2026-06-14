@@ -64,7 +64,32 @@ stellarator_flux_surfaces`; `python experiments/05_stellarator_field_lines/run.p
   run the Track-A transport on these flux surfaces (inherently steady-state — no
   sawteeth/disruptions, the explicit tokamak contrast).
 
+## E2 — Transport on the stellarator: the steady-state contrast
+
+The payoff of building a genuine current-free field: the **operating modes collapse**.
+A tokamak needs a driven plasma current for both confinement and ι — and that current
+is what makes q(0) fall below 1 as the core heats (the sawtooth, Track C) and what the
+Greenwald limit caps (the disruption, F3.5). A stellarator has **no net current**, so:
+
+- its q-profile is fixed by the coils (`sawtooth.external_q_profile`, q > 1 everywhere);
+- the burning core **cannot drive q(0) < 1** → no m=1 kink → **no sawteeth, no
+  current-driven disruptions**;
+- the discharge is just **startup → steady burn → fuelling**, inherently steady-state.
+
+Validation (`tests/test_sawtooth.py::test_stellarator_burn_is_sawtooth_free`): the same
+hot, peaked core that fires a sawtooth in a current-driven tokamak (q_from_temperature
+crosses 1) is **sawtooth-free** on the stellarator — its `external_q_profile` has no
+q = 1 surface, so `mixing_radius` returns None (no reconnection possible, ever).
+
+Deliverable: `outputs/stellarator_burn.gif` — the same exp-09 transport burn run on the
+stellarator (`gif_gallery stellarator_burn`): **0 sawtooth crashes vs the tokamak's
+179**, the smooth steady stellarator core-T0 shown beside the tokamak's sawtoothing
+trace. The honest reduction: same transport physics, the device topology removes the
+MHD-event coupling — it does *not* add stellarator-specific transport (neoclassical /
+turbulent χ from 3-D geometry, the real stellarator confinement story, is beyond F2).
+
 ## References
 - Spitzer, *Phys. Fluids* 1, 253 (1958) — the stellarator concept.
 - Freidberg, *Ideal MHD* — the straight-stellarator helical vacuum field.
 - Boozer, *Rev. Mod. Phys.* 76, 1071 (2004) — stellarator transform & symmetry.
+- Dinklage et al., *Nat. Phys.* 14, 855 (2018) — W7-X: steady-state, current-free operation.

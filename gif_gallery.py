@@ -441,6 +441,76 @@ def tokamak_3d_discharge():
     print(f"  wrote {out}")
 
 
+def _discharge_run(events):
+    """Run the exp-09 burn (ignition->steady->pellet); apply sawtooth crashes only if
+    `events` (the tokamak). Returns t, T0, T(rho) frames, #crashes."""
+    sim = tr.Transport1D(1.0, n_grid=129, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
+                         B=5.3, beta_limit=0.04, beta_stiffness=40.0)
+    sim.set_state(T=2.0, n=1e20)
+    aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
+    hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
+    pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
+    dt, t_end = 2e-3, 22.0
+    stride = max(1, int(t_end / dt) // 100)
+    ts, T0, frames, n_saw = [], [], [], 0
+    for k in range(int(t_end / dt)):
+        t = sim.t
+        p_aux = 6e5 * (0.3 + 0.7 * min(t / 4.0, 1.0)) if t < 4.0 else 0.0
+        ft, fp = (1e20 / 6.0, hold)
+        if 14.0 <= t < 14.2:
+            ft, fp = 1e20 / 6.0 + 3e20, pellet
+        sim.step(dt, p_aux_total=p_aux, aux_profile=aux, fuel_total=ft, fuel_profile=fp)
+        if events:
+            n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
+            if crashed:
+                sim.n, sim.T = n2, T2; n_saw += 1
+        if k % stride == 0:
+            ts.append(t); T0.append(sim.T[0]); frames.append(sim.T.copy())
+    return np.array(ts), np.array(T0), np.array(frames), n_saw, sim.rho
+
+
+def stellarator_burn():
+    """E2 (the stellarator contrast): the SAME burning-plasma transport runs on a
+    stellarator — but with no plasma current, q is set by the coils (q>1), so there is
+    NO sawtooth crash. The smooth steady stellarator burn is shown beside the tokamak's
+    sawtoothing trace (Track C): the inherent steady-state contrast."""
+    ts, T0_st, frames, n_st, rho = _discharge_run(events=False)   # stellarator: no events
+    _, T0_tok, _, n_tok, _ = _discharge_run(events=True)          # tokamak: sawteeth
+    print(f"  [stellarator_burn] stellarator: {n_st} sawteeth (no current -> no q=1 kink); "
+          f"tokamak (same burn): {n_tok} sawteeth")
+
+    theta = np.linspace(0, 2 * np.pi, 160)
+    RR, TT = np.meshgrid(rho, theta)
+    X, Y = RR * np.cos(TT), RR * np.sin(TT)
+    vmax = float(frames.max())
+    fig, (axc, axt) = plt.subplots(1, 2, figsize=(11, 5.0),
+                                   gridspec_kw={"width_ratios": [1, 1.25]})
+    axc.set_aspect("equal")
+
+    def draw(i):
+        axc.clear(); axc.set_aspect("equal"); axc.set_xticks([]); axc.set_yticks([])
+        axc.contourf(X, Y, np.broadcast_to(frames[i], RR.shape), levels=40,
+                     cmap="viridis", vmin=0, vmax=vmax)
+        axc.set_title(f"stellarator cross-section  t = {ts[i]:.1f} s")
+        axt.clear()
+        axt.axvspan(0, 4, color="gold", alpha=0.15)
+        axt.axvline(14.0, color="purple", ls="--", lw=1.0)
+        axt.plot(ts[:i + 1], T0_tok[:i + 1], color="0.6", lw=0.8,
+                 label="tokamak T0 (sawtoothing)")
+        axt.plot(ts[:i + 1], T0_st[:i + 1], color="teal", lw=1.4,
+                 label="stellarator T0 (smooth)")
+        axt.set(xlim=(0, ts[-1]), ylim=(0, max(35, vmax * 1.1)), xlabel="t [s]",
+                ylabel="core T0 [keV]",
+                title="Stellarator burn: steady, NO sawteeth (no plasma current)")
+        axt.legend(loc="lower right", fontsize=8)
+
+    an = FuncAnimation(fig, draw, frames=len(ts), blit=False)
+    out = f"{OUT}/stellarator_burn.gif"
+    an.save(out, writer=PillowWriter(fps=14), dpi=90)
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 def stellarator_flux_surfaces():
     """E1 (the stellarator): nested flux surfaces of a genuine VACUUM stellarator field
     — rotational transform from 3-D geometry, NOT plasma current (`fields.
@@ -500,6 +570,7 @@ GALLERY = {
     "tokamak_discharge_full": tokamak_discharge_full,
     "tokamak_3d_discharge": tokamak_3d_discharge,
     "stellarator_flux_surfaces": stellarator_flux_surfaces,
+    "stellarator_burn": stellarator_burn,
 }
 
 

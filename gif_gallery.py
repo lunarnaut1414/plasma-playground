@@ -394,28 +394,44 @@ def tokamak_discharge_full():
     RR, TT = np.meshgrid(sim.rho, theta)
     X, Y = RR * np.cos(TT), RR * np.sin(TT)
     vmax = float(Tfr.max())
+    levels = np.linspace(0, vmax, 41)
     fig, (axc, axt) = plt.subplots(1, 2, figsize=(11, 5.0),
                                    gridspec_kw={"width_ratios": [1, 1.25]})
-    axc.set_aspect("equal")
+    txt = anim.apply_house_style(fig, [axc, axt], dark=True)
+    sm = plt.cm.ScalarMappable(cmap="inferno", norm=plt.Normalize(0, vmax))
+    cb = fig.colorbar(sm, ax=axc, fraction=0.046, pad=0.03, label="T [keV]")
+    cb.ax.yaxis.label.set_color(txt); cb.ax.tick_params(colors=txt)
+    cb.outline.set_edgecolor(txt)
 
     def draw(i):
         axc.clear(); axc.set_aspect("equal"); axc.set_xticks([]); axc.set_yticks([])
-        axc.contourf(X, Y, np.broadcast_to(Tfr[i], RR.shape), levels=40,
-                     cmap="inferno", vmin=0, vmax=vmax)
-        axc.set_title(f"cross-section  t = {ts[i]:.1f} s")
-        axt.clear()
-        axt.axvspan(0, 4, color="gold", alpha=0.15)
-        axt.axvline(14.0, color="purple", ls="--", lw=1.0)
-        axt.plot(ts[:i + 1], T0[:i + 1], color="crimson", lw=1.0, label="core T0 [keV]")
-        axt.plot(ts[:i + 1], 10 * q0[:i + 1], color="navy", lw=0.9, label="10*q(0)")
-        axt.axhline(10.0, color="navy", ls=":", lw=0.8)
+        axc.set_facecolor(anim.HOUSE_BG)
+        for spine in axc.spines.values():
+            spine.set_visible(False)
+        axc.contourf(X, Y, np.broadcast_to(Tfr[i], RR.shape), levels=levels,
+                     cmap="inferno", vmin=0, vmax=vmax, extend="max")
+        axc.plot(np.cos(theta), np.sin(theta), color=txt, lw=0.8, alpha=0.4)
+        axc.set_title(f"poloidal cross-section  t = {ts[i]:4.1f} s", color=txt)
+
+        axt.clear(); anim.apply_house_style(fig, [axt])
+        axt.axvspan(0, 4, color="#ffd166", alpha=0.12)
+        axt.text(0.3, 33.2, "ignition", color="#ffd166", fontsize=8)
+        axt.axvline(14.0, color="#c792ea", ls="--", lw=1.1)
+        axt.text(14.2, 33.2, "pellet", color="#c792ea", fontsize=8)
+        axt.plot(ts[:i + 1], T0[:i + 1], color="#ff5a5a", lw=1.3, label="core T0 [keV]")
+        axt.plot(ts[:i + 1], 10 * q0[:i + 1], color="#22d3ee", lw=1.0,
+                 label="q(0)×10")
+        axt.axhline(10.0, color="#22d3ee", ls=":", lw=0.8, alpha=0.7)
+        axt.text(21.6, 10.4, "q=1", color="#22d3ee", fontsize=8, ha="right")
         axt.set(xlim=(0, t_end), ylim=(0, max(35, vmax * 1.1)), xlabel="t [s]",
-                title="ignition | burning H-mode + sawteeth | pellet")
-        axt.legend(loc="upper right", fontsize=8)
+                title="ignition  →  burning H-mode + sawteeth  →  pellet")
+        leg = axt.legend(loc="upper right", fontsize=8, facecolor=anim.HOUSE_BG,
+                         edgecolor=txt, labelcolor=txt)
+        leg.get_frame().set_alpha(0.6)
 
     an = FuncAnimation(fig, draw, frames=len(ts), blit=False)
     out = f"{OUT}/tokamak_discharge_full.gif"
-    an.save(out, writer=PillowWriter(fps=14), dpi=90)
+    an.save(out, writer=PillowWriter(fps=16), dpi=120)
     plt.close(fig)
     print(f"  wrote {out}")
 

@@ -89,6 +89,24 @@ re-dumped+Read — glowing, centered, the iconic twisty stellarator. pytest 208;
 No new test (render-only; helical_stellarator field + iota covered in test_fields). 4.6 MB.
 Next: R4 = tokamak_discharge_full.
 
+## R4 — tokamak_discharge_full — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D2  ->  (after): A5 B5 C5 D5
+Saw: the 2-panel flight-sim narrative is excellent and correct — ignition ramp (yellow
+band) -> burning H-mode with T0 sawtoothing (red zigzag) + q(0)~1 (the 10*q line) ->
+pellet at t=14 cools then re-climbs. Sawteeth read fine on the 1-D trace (no aliasing like
+the 3-D had). BUT default white (clashing with the dark gallery) and the inferno
+cross-section had NO colorbar (core temperature unreadable).
+Defect: D-axis (white bg, white box around the circular cross-section) + C-axis (missing
+colorbar).
+Did: pure-style TWEAK. Dark house style on both panels (re-applied per frame); added a
+T[keV] colorbar to the cross-section + a subtle rho=1 boundary circle, hid the box spines;
+brightened the trace (T0 #ff5a5a, q(0)x10 cyan), labeled ignition band / pellet line / q=1;
+styled the legend dark. dpi 90->120, fps 14->16.
+Verify: regenerated (179 sawteeth, q(0) min 0.94 — unchanged); re-dumped+Read — clean dark
+2-panel with colorbar. pytest 208; ruff clean. No new test (style-only). size 3.7 MB.
+ALL 4 HEROES DONE (R1 3-D discharge, R2 tearing, R3 stellarator, R4 discharge). Next: R5 =
+stellarator_burn (the contrast 2-panel).
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

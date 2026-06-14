@@ -231,3 +231,27 @@
   OR proceed to **Track C** — couple a sawtooth/tearing event into the exp-09 transport
   burn (headline `tokamak_discharge_full.gif`), the integrated two-timescale "dream movie".
   Track C is the higher-value showcase; B3a already gives the crash operator Track C needs.
+
+## Track C (C1) — DONE — 47bc75b
+- built: the **event-coupled discharge** — the F2 transport burn (exp 09) coupled to
+  m=1 sawtooth crashes (staged two-timescale model). New coupling kernels in
+  `plasmaplay/sawtooth.py`: `q_from_temperature` (Spitzer-ohmic q-profile J~T^1.5 → hot
+  core lowers q(0)), `crash_profiles` (flatten n & T inside r_mix conserving BOTH
+  particles and energy), `sawtooth_event` (fire iff q(0)<q_trigger=0.93). Reuses B3a
+  `kadomtsev_flatten` + A4 1-D β-limit (realistic ~25 keV). Wired `run.py --mode coupled`.
+- validation (3 tests): peaked T lowers q(0); crash conserves particles+energy to 1e-10;
+  `sawtooth_event` fires on unstable core, leaves stable one untouched. Driver: q(0)→0.93
+  drives **179 sawteeth**, core T0 sawtooths 23-26 keV, **events OFF → 0 crashes = pure
+  Track-A** (sawteeth shift core by up to ~16 keV → coupling is real). **202 passed**, ruff clean.
+- gif: `outputs/tokamak_discharge_full.gif` (2.5M, cross-section + sawtooth time-trace:
+  ignition→burning H-mode+sawteeth→pellet→settle); PNG `tokamak_discharge_full.png`. Memo
+  `docs/C1_COUPLED_DISCHARGE.md`.
+- gotcha: needs a **trigger margin** (q(0)<0.93 not <1) or it crashes EVERY step at the
+  marginal point (same as B3); use the A4 β-limit for realistic temps or the core runs to
+  ~80 keV; energy conservation across a crash is ~5e-3 full-domain (mixing-boundary grid
+  cell) though the kernel conserves the inside-region integral to 1e-10; q_edge≈2.0-2.2
+  makes the burning-profile q(0) dip below 1 (q_edge=3 too high → q0 stays >0.99).
+- next options: **C2** (3-D torus render of the discharge, `tokamak_3d_discharge.gif` —
+  reuse `animate.animate_torus_3d`); a **tearing/island event** coupling (C1b, Δ′>0 → island
+  flatten); **B3b** (clean periodic sawtooth); or **Track E** (stellarator). Per NIGHT.md,
+  C2 or Track E are the remaining showcase rungs; the core A–C ladder is essentially complete.

@@ -100,6 +100,83 @@ def run_zerod(save=False):
     _finish(fig, save, "burn_0d_ignition.png")
 
 
+# Field / current for the beta-limit (F1). With a=1 m, Ip~7 MA, B=5.3 T the Troyon
+# limit beta_N*Ip/(a*B) lands near 4%, putting the burning point in the 10-25 keV band.
+B_FIELD = 5.3     # on-axis toroidal field [T]
+IP_MA = 7.0       # plasma current [MA]
+BETA_N = 3.0      # normalized-beta (Troyon) coefficient [% m T / MA]
+TAU_HE = 10.0     # helium-ash particle confinement (pumping) time [s]
+
+
+# ---------------------------------------------------------------------------
+# F1 — 0-D with He ash, dilution/burnup, and a soft beta-limit
+# ---------------------------------------------------------------------------
+def ash_scenario(beta_limit, tau_he=TAU_HE, t_end=60.0):
+    """Run the F1 0-D burn: a heating kick, then self-sustained beta-limited burn.
+
+    Shared by `run_ash` and the gif gallery so the scenario is defined once.
+    """
+    def paux(t):
+        return 5.0e5 if t < 5.0 else 0.0       # ignition kick, then off
+
+    return tr.burn_0d_ash(N_TARGET, 5.0, tau_E=3.0, p_aux=paux, B=B_FIELD,
+                          tau_p=6.0, tau_he=tau_he, fuel_rate=N_TARGET / 6.0,
+                          beta_limit=beta_limit, t_end=t_end)
+
+
+def run_ash(save=False):
+    print("\n--- 0-D burn with He ash, dilution & beta-limit (F1) ---")
+    beta_lim = tr.troyon_limit(BETA_N, IP_MA, A_MINOR, B_FIELD)
+    print(f"  Troyon beta-limit beta_N*Ip/(a*B) = {beta_lim*100:.2f}%")
+
+    r = ash_scenario(beta_lim)
+    # ignition: alpha self-heating overtakes the (beta-degraded) losses
+    W = 1.5 * (2 * r["n_DT"] + 3 * r["n_He"]) * r["T"] * 1e3 * 1.602176634e-19
+    p_loss = W / r["tau_E_eff"] + r["p_brem"]
+    cross = np.where(r["p_alpha"] > p_loss)[0]
+    t_ign = r["t"][cross[0]] if cross.size else np.nan
+
+    # steady-state ash balance: production R_fus should equal pumping n_He/tau_he
+    R = tr.reaction_rate_dt(r["n_DT"][-1], r["T"][-1])
+    bal = r["n_He"][-1] / (TAU_HE * R)
+    print(f"  ignition (alpha > losses) at t = {t_ign:.2f} s")
+    print(f"  steady burn: T = {r['T'][-1]:.1f} keV  (10-25 keV band: "
+          f"{10 <= r['T'][-1] <= 25})")
+    print(f"  beta = {r['beta'][-1]*100:.2f}%  pinned at the limit "
+          f"({r['beta'][-1]/beta_lim:.2f}x)")
+    print(f"  ash fraction f_He = {r['f_He'][-1]*100:.1f}%, Z_eff = {r['z_eff'][-1]:.2f}")
+    print(f"  ash steady balance n_He/(tau_he*R_fus) = {bal:.3f}  (should be ~1)")
+
+    # dilution lowers Q: poor ash pumping (long tau_he) -> more ash -> lower fusion power
+    clean = ash_scenario(beta_lim, tau_he=3.0)
+    dirty = ash_scenario(beta_lim, tau_he=15.0)
+    print(f"  dilution: f_He {clean['f_He'][-1]*100:.1f}% -> {dirty['f_He'][-1]*100:.1f}%"
+          f" drops P_fusion {clean['p_fusion'][-1]/1e6*PLASMA_VOLUME:.1f} -> "
+          f"{dirty['p_fusion'][-1]/1e6*PLASMA_VOLUME:.1f} MW "
+          f"(very poor pumping eventually quenches the burn -- ash poisoning)")
+
+    _plot_ash(r, beta_lim, t_ign, save)
+
+
+def _plot_ash(r, beta_lim, t_ign, save):
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4.8))
+    # phase-space (n_e, T) ignition track colored by ash fraction
+    sc = ax[0].scatter(r["n_e"], r["T"], c=r["f_He"] * 100, cmap="viridis", s=6)
+    ax[0].set(xlabel=r"$n_e$ [m$^{-3}$]", ylabel="T [keV]",
+              title="Ignition track in (n, T), colored by ash")
+    fig.colorbar(sc, ax=ax[0], label="ash fraction [%]")
+    # time traces: T, beta vs limit, ash fraction
+    ax[1].plot(r["t"], r["T"], color="crimson", label="T [keV]")
+    ax[1].plot(r["t"], r["beta"] * 100, color="navy", label=r"$\beta$ [%]")
+    ax[1].axhline(beta_lim * 100, ls=":", color="navy", lw=0.9, label=r"$\beta$-limit")
+    ax[1].plot(r["t"], r["f_He"] * 100, color="seagreen", label="ash f_He [%]")
+    ax[1].axvline(t_ign, ls="--", color="k", lw=0.8)
+    ax[1].set(xlabel="t [s]", title="Burn with ash & beta-limit")
+    ax[1].legend(loc="center right")
+    fig.tight_layout()
+    _finish(fig, save, "burn_0d_ash.png")
+
+
 # ---------------------------------------------------------------------------
 # F2 — 1-D burn arc
 # ---------------------------------------------------------------------------
@@ -253,6 +330,8 @@ def main(mode="burn", save=False, n_grid=129):
     print("=" * 64)
     if mode == "zerod":
         run_zerod(save=save)
+    elif mode == "ash":
+        run_ash(save=save)
     else:
         run_burn(save=save, n_grid=n_grid)
 
@@ -260,7 +339,7 @@ def main(mode="burn", save=False, n_grid=129):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--mode", choices=["burn", "zerod"], default="burn")
+    p.add_argument("--mode", choices=["burn", "zerod", "ash"], default="burn")
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--n-grid", type=int, default=129)
     args = p.parse_args()

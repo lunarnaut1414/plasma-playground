@@ -81,6 +81,16 @@ def test_animate_cross_section_writes_gif(tmp_path):
     assert out.exists() and out.stat().st_size > 0
 
 
+def test_animate_phase_track_writes_gif(tmp_path):
+    t = np.linspace(0, 10, 20)
+    n = 1e20 * (1 + 0.1 * t)
+    T = 2 + 2 * t
+    out = anim.animate_phase_track(n, T, t, path=tmp_path / "track.gif",
+                                   color=np.linspace(0, 0.1, 20), xlabel="n",
+                                   ylabel="T", clabel="f_He", fps=8, dpi=60)
+    assert out.exists() and out.stat().st_size > 0
+
+
 def test_animate_torus_3d_writes_gif(tmp_path):
     edge = np.linspace(1.0, 5.0, 8)
     out = anim.animate_torus_3d(edge, path=tmp_path / "torus.gif",

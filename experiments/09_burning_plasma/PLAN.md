@@ -1,8 +1,8 @@
 # 09 — Burning plasma (transport) — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** F0 + F2 implemented (`run.py`), kernel `plasmaplay/transport.py`,
-> tests `tests/test_transport.py` (16 passing). F3 (couple to the experiment-04
+> **Status:** F0 + F1 + F2 implemented (`run.py`), kernel `plasmaplay/transport.py`,
+> tests `tests/test_transport.py` (22 passing). F3 (couple to the experiment-04
 > equilibrium) next.
 
 ## The question
@@ -44,11 +44,23 @@ finite differences. A flux-surface-averaged radial coordinate ρ = r/a.
   keV·s·m⁻³) and dies below it; at steady state P_α = P_loss + P_brem. *(tests)*
 - **Compute:** instant.
 
-### F1 — 0-D with He ash & burnup  ◻ not yet
-- **Models:** add a helium-ash species that accumulates from fusion, dilutes the
-  fuel, and radiates; track D-T burnup. Ash pumping and fresh-fuel injection now
-  *matter* for sustaining the burn.
-- **Validation:** steady ash fraction set by τ_He/τ_E; dilution lowers the achievable Q.
+### F1 — 0-D with He ash, dilution & β-limit  ✅ implemented (`--mode ash`)
+- **Models:** `transport.burn_0d_ash` — three coupled ODEs for fuel-ion density
+  n_DT, helium-ash density n_He, and energy W. Ash is born one-per-reaction and
+  pumped on τ_He*; fuel is burned (−2·R_fus) and refuelled; quasineutrality
+  n_e = n_DT + 2n_He gives fuel **dilution**; ash raises **Z_eff** (more brem); a
+  **soft one-sided β-limit** degrades confinement only above β_limit (Troyon),
+  pinning the operating point in the real burning band.
+- **Method & tools:** RK4 on (n_DT, n_He, W); Bosch-Hale `reaction_rate_dt`;
+  `beta_thermal` / `troyon_limit` helpers. Pure NumPy.
+- **You'll learn:** why machines must pump ash and refuel continuously, why Z_eff
+  matters, and why β-limited burns sit at ~15 keV not ~80 keV.
+- **Validation:** steady ash balance n_He = τ_He*·R_fus (0.99); dilution lowers
+  P_fusion; the β-limit pins β at the Troyon limit and lands T in the 10–25 keV
+  band (14.3 keV vs 45 keV unlimited). *(6 tests)*
+- **Deliverable:** `outputs/burn_0d_ignition.gif` — the (n,T) ignition track
+  colored by ash fraction; `burn_0d_ash.png` still.
+- **Compute:** instant.
 
 ### F2 — 1-D radial transport  ✅ implemented (default mode)
 - **Models:** evolve T(ρ,t) and n(ρ,t) with diffusion equations,

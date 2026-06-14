@@ -104,6 +104,68 @@ def test_0d_triple_product_at_ignition_near_lawson():
     assert 1e21 < triple < 2e22                # Lawson scale (~3e21 for DT)
 
 
+# --- F1: helium ash, dilution, burnup, beta-limit -------------------------
+def test_z_eff_rises_with_ash():
+    """Pure D-T has Z_eff=1; helium(2+) ash raises it (more brem)."""
+    assert tr.z_eff_with_ash(1e20, 0.0) == pytest.approx(1.0, rel=1e-9)
+    z_small = tr.z_eff_with_ash(1e20, 2e18)
+    z_big = tr.z_eff_with_ash(1e20, 1e19)
+    assert 1.0 < z_small < z_big
+
+
+def test_dilution_lowers_fusion_power():
+    """At fixed electron density n_e and T, ash displaces fuel (n_DT = n_e - 2 n_He),
+    so the fusion power n_DT^2 <sigma v> falls as the ash fraction rises."""
+    n_e, T = 1e20, 15.0
+    p_clean = tr.fusion_power_density(n_e - 2 * 1e18, T, "total")   # ~2% ash
+    p_dirty = tr.fusion_power_density(n_e - 2 * 1e19, T, "total")   # ~20% ash
+    assert p_dirty < p_clean
+
+
+def test_beta_thermal_and_troyon():
+    """beta = 2 mu0 p / B^2 with p = (2/3) W; Troyon limit scales as Ip/(a B)."""
+    W = 9.6e5                                  # ~ n_DT=1e20, T=20 keV
+    b = tr.beta_thermal(W, 5.3)
+    assert b == pytest.approx(2 * tr.MU_0 * (2 / 3) * W / 5.3**2, rel=1e-9)
+    # Troyon: beta_N=3, Ip=15 MA, a=2 m, B=5.3 T -> ~4.2%
+    assert tr.troyon_limit(3.0, 15.0, 2.0, 5.3) == pytest.approx(0.0425, rel=1e-2)
+
+
+def _ash_kick(t):
+    """A heating kick strong/long enough to ignite the ash-diluted plasma."""
+    return 5e5 if t < 5.0 else 0.0
+
+
+def test_ash_steady_state_balance():
+    """At a burning steady state ash production equals ash pumping: n_He = tau_he*R_fus."""
+    tau_he = 10.0
+    r = tr.burn_0d_ash(1e20, 5.0, tau_E=3.0, p_aux=_ash_kick, B=5.3, tau_p=6.0,
+                       tau_he=tau_he, fuel_rate=1e20 / 6.0, beta_limit=0.04, t_end=80.0)
+    R = tr.reaction_rate_dt(r["n_DT"][-1], r["T"][-1])
+    assert r["n_He"][-1] == pytest.approx(tau_he * R, rel=0.05)
+    assert 0.0 < r["f_He"][-1] < 0.30           # a sensible ash fraction
+
+
+def test_beta_limit_lands_in_burning_band():
+    """Without a beta-limit the burn runs away hot (~45+ keV); the soft beta-limit
+    pins beta at the limit and lands the operating point in the 10-25 keV band."""
+    kw = dict(tau_E=3.0, p_aux=_ash_kick, B=5.3, tau_p=6.0, tau_he=10.0,
+              fuel_rate=1e20 / 6.0, t_end=60.0)
+    hot = tr.burn_0d_ash(1e20, 5.0, beta_limit=None, **kw)
+    capped = tr.burn_0d_ash(1e20, 5.0, beta_limit=0.04, **kw)
+    assert hot["T"][-1] > 40.0                   # limit-free point is hot
+    assert 10.0 <= capped["T"][-1] <= 25.0       # beta-limited burning band
+    assert capped["beta"][-1] == pytest.approx(0.04, rel=0.15)  # pinned at the limit
+
+
+def test_fuel_burnup_consumes_dt_and_breeds_ash():
+    """With no fuelling, an ignited plasma burns fuel down and accumulates ash."""
+    r = tr.burn_0d_ash(1e20, 8.0, tau_E=3.0, p_aux=_kick, B=5.3, tau_p=50.0,
+                       tau_he=50.0, fuel_rate=0.0, beta_limit=0.05, t_end=30.0)
+    assert r["n_DT"][-1] < r["n_DT"][0]          # fuel consumed (burnup + transport)
+    assert r["n_He"][-1] > 0.0                    # ash bred from fusion
+
+
 # --- 1-D transport --------------------------------------------------------
 def test_gaussian_deposition_normalized():
     rho = np.linspace(0, 1, 257)

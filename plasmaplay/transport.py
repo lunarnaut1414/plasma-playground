@@ -87,8 +87,19 @@ def reactivity_dt(T_keV):
 # ---------------------------------------------------------------------------
 # Power densities (W/m^3) — the source/sink terms shared by F0 and F2
 # ---------------------------------------------------------------------------
+def reaction_rate_dt(n_dt, T_keV):
+    """D-T reactions per m^3 per second for a 50:50 mix of fuel-ion density `n_dt`.
+
+    n_D = n_T = n_dt/2, so the reaction-rate density is (n_dt/2)^2 <sigma v>. This
+    is the single quantity that drives *both* the alpha heating and the helium-ash
+    production / fuel burnup (one He nucleus + 2 fuel ions consumed per reaction).
+    """
+    n = np.asarray(n_dt, dtype=float)
+    return 0.25 * n ** 2 * reactivity_dt(T_keV)
+
+
 def fusion_power_density(n, T_keV, which="alpha"):
-    """Fusion power density (W/m^3) for a 50:50 D-T plasma of total ion density n.
+    """Fusion power density (W/m^3) for a 50:50 D-T plasma of fuel-ion density n.
 
     n_D = n_T = n/2, so the reaction-rate density is (n/2)^2 <sigma v>. `which`
     selects which slice of the 17.6 MeV is counted:
@@ -96,9 +107,8 @@ def fusion_power_density(n, T_keV, which="alpha"):
       "neutron" -> 14.1 MeV (the part that leaves — fusion power to the blanket)
       "total"   -> 17.6 MeV
     """
-    rate = 0.25 * np.asarray(n, dtype=float) ** 2 * reactivity_dt(T_keV)
     energy = {"alpha": E_ALPHA_MEV, "neutron": E_NEUTRON_MEV, "total": E_FUSION_MEV}[which]
-    return rate * energy * _MEV_J
+    return reaction_rate_dt(n, T_keV) * energy * _MEV_J
 
 
 def bremsstrahlung_density(n, T_keV, z_eff=1.0):
@@ -194,6 +204,159 @@ def burn_0d(n0, T0, *, tau_E, p_aux, tau_p=None, fuel_rate=0.0, z_eff=1.0,
         "t": t, "T": T, "n": N, "W": W,
         "p_alpha": p_alpha, "p_fusion": p_fus, "p_brem": p_brem, "p_aux": p_aux_arr,
         "Q": Q, "triple": N * T * tauE_arr,
+    }
+
+
+# ---------------------------------------------------------------------------
+# F1 — 0-D with helium ash, fuel dilution/burnup, and a soft beta-limit
+# ---------------------------------------------------------------------------
+MU_0 = 4.0e-7 * np.pi   # vacuum permeability [H/m]
+
+
+def beta_thermal(w_density, B):
+    """Thermal beta = 2 mu0 p / B^2, the ratio of plasma to magnetic pressure.
+
+    For an ideal gas W = (3/2) p, so the thermal pressure is p = (2/3) W. `B` is the
+    on-axis toroidal field [T]. Returned as a fraction (multiply by 100 for percent).
+    """
+    p = (2.0 / 3.0) * np.asarray(w_density, dtype=float)
+    return 2.0 * MU_0 * p / B ** 2
+
+
+def troyon_limit(beta_N, Ip_MA, a, B):
+    """Troyon beta limit as a *fraction*: beta_max[%] = beta_N * Ip[MA] / (a[m] B[T]).
+
+    beta_N is the normalized-beta coefficient in percent-meter-tesla-per-megaamp
+    (the Troyon value is ~2.8; machines push ~3-4). Divided by 100 to return a
+    fraction so it compares directly with `beta_thermal`.
+    """
+    return beta_N * Ip_MA / (a * B) / 100.0
+
+
+def _w_of_ash(n_dt, n_he, T_keV):
+    """Energy density W = (3/2)(n_e + n_i) T with ash present.
+
+    Quasineutrality with doubly-charged helium: n_e = n_dt + 2 n_he; the total ion
+    density is n_i = n_dt + n_he. So W = (3/2)(2 n_dt + 3 n_he) T (T in keV).
+    """
+    return 1.5 * (2.0 * n_dt + 3.0 * n_he) * T_keV * 1e3 * E
+
+
+def _T_of_ash(n_dt, n_he, w):
+    """Invert `_w_of_ash` for T in keV (guards a vanishing heat-capacity)."""
+    denom = 1.5 * (2.0 * np.asarray(n_dt, float) + 3.0 * np.asarray(n_he, float)) * 1e3 * E
+    return w / np.maximum(denom, 1e-12)
+
+
+def z_eff_with_ash(n_dt, n_he):
+    """Z_eff = sum(n_i Z_i^2) / n_e for a D-T + He(2+) plasma.
+
+    Z_eff = (n_dt * 1^2 + n_he * 2^2) / (n_dt + 2 n_he). Ash raises Z_eff, which
+    raises the bremsstrahlung loss — a second penalty for letting ash accumulate.
+    """
+    n_dt = np.asarray(n_dt, float)
+    n_he = np.asarray(n_he, float)
+    n_e = n_dt + 2.0 * n_he
+    return (n_dt + 4.0 * n_he) / np.maximum(n_e, 1e10)
+
+
+def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
+                fuel_rate=0.0, beta_limit=None, beta_stiffness=80.0,
+                t_end=30.0, dt=1e-3):
+    """0-D burn with He ash, fuel dilution + burnup, and a soft beta-limit (F1).
+
+    Three coupled ODEs for the fuel-ion density n_DT, the helium-ash density n_He,
+    and the energy density W = (3/2)(n_e + n_i) T:
+
+        dn_DT/dt = S_fuel - n_DT/tau_p - 2 R_fus     (2 fuel ions consumed / reaction)
+        dn_He/dt =          R_fus      - n_He/tau_he (ash born / reaction, pumped on tau_he)
+        dW/dt    = P_aux + P_alpha - P_brem - W/tau_E_eff
+
+    with R_fus = reaction_rate_dt(n_DT, T) and quasineutrality n_e = n_DT + 2 n_He.
+    Bremsstrahlung uses the ash-raised Z_eff. The **soft beta-limit** degrades the
+    energy confinement as the pressure approaches the limit,
+
+        tau_E_eff = tau_E / (1 + beta_stiffness * max(0, beta/beta_limit - 1)^2),
+
+    so the operating point is pinned near beta_limit instead of running away to the
+    ~80 keV point of the limit-free model — landing it in the real ~10-25 keV band.
+    The penalty is **one-sided**: below the limit confinement is untouched (ignition
+    proceeds normally), and it bites only once beta exceeds beta_limit, acting as a
+    soft stability wall the pressure cannot climb past.
+
+    Why this rung matters: real machines must *pump* the helium ash and *refuel* the
+    burned D-T continuously, and they operate beta-limited. Turn `tau_he` short and
+    `beta_limit=None` to recover something close to the F0 picture.
+
+    Parameters mirror `burn_0d`, plus: `B` on-axis field [T] (needed for beta),
+    `tau_he` ash particle-confinement time [s] (default 5*tau_E), `beta_limit`
+    fraction (None disables it), `beta_stiffness` the soft-limit exponent.
+
+    Returns a dict of arrays: t, T (keV), n_DT, n_He, n_e, f_He (= n_He/n_e), z_eff,
+    beta, tau_E_eff, p_alpha, p_fusion, p_brem, p_aux, Q (= P_fus/P_aux), triple.
+    """
+    tau_p = 3.0 * tau_E if tau_p is None else tau_p
+    tau_he = 5.0 * tau_E if tau_he is None else tau_he
+
+    def as_f(x):
+        return x if callable(x) else (lambda t, _x=x: _x)
+
+    tauE_f, paux_f, fuel_f = as_f(tau_E), as_f(p_aux), as_f(fuel_rate)
+
+    def tauE_eff(t, w):
+        tE = tauE_f(t)
+        if beta_limit is None:
+            return tE
+        excess = max(0.0, beta_thermal(w, B) / beta_limit - 1.0)
+        return tE / (1.0 + beta_stiffness * excess ** 2)
+
+    def deriv(t, n_dt, n_he, w):
+        T = _T_of_ash(n_dt, n_he, w)
+        R = reaction_rate_dt(n_dt, T)
+        n_e = n_dt + 2.0 * n_he
+        z = float(z_eff_with_ash(n_dt, n_he))
+        p_a = R * E_ALPHA_MEV * _MEV_J
+        p_b = bremsstrahlung_density(n_e, T, z)
+        dw = paux_f(t) + p_a - p_b - w / tauE_eff(t, w)
+        d_ndt = fuel_f(t) - n_dt / tau_p - 2.0 * R
+        d_nhe = R - n_he / tau_he
+        return d_ndt, d_nhe, dw
+
+    nstep = int(round(t_end / dt))
+    t = np.empty(nstep + 1)
+    NDT = np.empty(nstep + 1)
+    NHE = np.empty(nstep + 1)
+    W = np.empty(nstep + 1)
+    NDT[0], NHE[0], W[0], t[0] = float(n_dt0), 0.0, _w_of_ash(n_dt0, 0.0, T0), 0.0
+
+    for k in range(nstep):
+        tk, a0, b0, w0 = t[k], NDT[k], NHE[k], W[k]
+        k1 = deriv(tk, a0, b0, w0)
+        k2 = deriv(tk + dt / 2, a0 + dt / 2 * k1[0], b0 + dt / 2 * k1[1], w0 + dt / 2 * k1[2])
+        k3 = deriv(tk + dt / 2, a0 + dt / 2 * k2[0], b0 + dt / 2 * k2[1], w0 + dt / 2 * k2[2])
+        k4 = deriv(tk + dt, a0 + dt * k3[0], b0 + dt * k3[1], w0 + dt * k3[2])
+        NDT[k + 1] = max(a0 + dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]), 1e10)
+        NHE[k + 1] = max(b0 + dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]), 0.0)
+        W[k + 1] = max(w0 + dt / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]), 1e-6)
+        t[k + 1] = tk + dt
+
+    T = _T_of_ash(NDT, NHE, W)
+    n_e = NDT + 2.0 * NHE
+    R = reaction_rate_dt(NDT, T)
+    p_alpha = R * E_ALPHA_MEV * _MEV_J
+    p_fus = R * E_FUSION_MEV * _MEV_J
+    z = z_eff_with_ash(NDT, NHE)
+    p_brem = bremsstrahlung_density(n_e, T, z)
+    p_aux_arr = np.array([paux_f(tk) for tk in t])
+    beta = beta_thermal(W, B)
+    tauE_arr = np.array([tauE_eff(tk, wk) for tk, wk in zip(t, W)])
+    with np.errstate(divide="ignore", invalid="ignore"):
+        Q = np.where(p_aux_arr > 0, p_fus / p_aux_arr, np.inf)
+    return {
+        "t": t, "T": T, "n_DT": NDT, "n_He": NHE, "n_e": n_e,
+        "f_He": NHE / np.maximum(n_e, 1e10), "z_eff": z, "beta": beta,
+        "tau_E_eff": tauE_arr, "p_alpha": p_alpha, "p_fusion": p_fus,
+        "p_brem": p_brem, "p_aux": p_aux_arr, "Q": Q, "triple": n_e * T * tauE_arr,
     }
 
 

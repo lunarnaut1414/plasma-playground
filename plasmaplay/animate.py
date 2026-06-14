@@ -97,6 +97,55 @@ def animate_profiles(x, frames, times=None, *, path, labels=None, xlabel="r/a",
     return out
 
 
+def animate_phase_track(x, y, times=None, *, path, color=None, xlabel="", ylabel="",
+                        title="", clabel="", cmap="viridis", xlim=None, ylim=None,
+                        fps=20, dpi=90, logx=False):
+    """Animate a 2-D trajectory (x[i], y[i]) as a growing, fading tail with a head.
+
+    The reusable "phase-space movie" used for burn (n,T) ignition tracks: a point
+    sweeps the plane over time, leaving a tail; if `color` (one scalar per frame) is
+    given the head is colored by it with a colorbar (e.g. ash fraction). Returns the
+    saved Path. Pure rendering — the *physics* lives in the (x,y,color) arrays.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    n_t = x.size
+    xlim = xlim or (x.min(), x.max() * 1.05 + 1e-30)
+    ylim = ylim or (min(0.0, y.min()), y.max() * 1.08 + 1e-30)
+    norm = None
+    if color is not None:
+        color = np.asarray(color, dtype=float)
+        norm = plt.Normalize(vmin=float(color.min()), vmax=float(color.max()) + 1e-30)
+
+    fig, ax = plt.subplots(figsize=(6.5, 5))
+    ax.set(xlim=xlim, ylim=ylim, xlabel=xlabel, ylabel=ylabel)
+    if logx:
+        ax.set_xscale("log")
+    (tail,) = ax.plot([], [], color="0.6", lw=1.2, alpha=0.8)
+    head = ax.scatter([x[0]], [y[0]], s=80, zorder=3,
+                      c=([color[0]] if color is not None else "crimson"),
+                      cmap=cmap, norm=norm, edgecolors="k", linewidths=0.6)
+    if color is not None:
+        fig.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=norm), ax=ax, label=clabel,
+                     shrink=0.85)
+    ttl = ax.set_title(title)
+
+    def draw(i):
+        tail.set_data(x[: i + 1], y[: i + 1])
+        head.set_offsets([[x[i], y[i]]])
+        if color is not None:
+            head.set_array(np.array([color[i]]))
+        if times is not None:
+            ttl.set_text(f"{title}   t = {times[i]:.1f} s")
+        return tail, head, ttl
+
+    anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
 def animate_cross_section(rho, frames, times=None, *, path, title="",
                           cmap="inferno", clabel="", fps=20, dpi=90,
                           vmin=0.0, vmax=None, n_theta=160):

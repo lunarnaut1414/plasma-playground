@@ -47,6 +47,21 @@ resolution (~5e-3 at the mixing boundary); and **turning events off gives 0 cras
 and the pure Track-A burn** (the sawteeth shift the core by up to ~16 keV — the
 coupling is real, not a no-op).
 
+### Reactor-faithful cadence (gif showcases)
+
+`run.py --mode coupled` uses the simple model above (crash whenever q(0) < trigger →
+many small sawteeth, count set by the timestep). The **gif showcases**
+(`tokamak_discharge_full`, `tokamak_3d_discharge`) add one more piece of physics: a
+crash can fire only once the resistive current-redistribution time
+`sawtooth.resistive_relaxation_time(T_core) = τ_ref·(T_core/T_ref)^{3/2}` has elapsed
+since the last one. Since Spitzer resistivity ∝ T^{−3/2}, a **hotter core re-peaks its
+current more slowly** → a longer period and a bigger build-up → a *few* large **"monster"
+sawteeth** (≈6 over the discharge, ~14 keV core drops each), not ~180 small ones. This is
+why a burning reactor sawtooths slowly, and it makes the count **timestep-independent**
+(refining dt 8× left it at 6). The crash itself is still applied instantaneously
+(Kadomtsev) — resolving the ~100 µs reconnection would need the reduced-MHD model, not
+this transport solver.
+
 ## Deliverables
 
 - `outputs/tokamak_discharge_full.gif` (C1) — the integrated discharge: the poloidal

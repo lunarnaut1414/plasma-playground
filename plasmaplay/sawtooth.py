@@ -96,6 +96,26 @@ def q_from_temperature(rho, T, q_edge=3.0, alpha=1.5):
     return q
 
 
+def resistive_relaxation_time(T_core_keV, tau_ref=2.0, T_ref_keV=20.0):
+    """Sawtooth recovery time = the resistive current-redistribution time near the axis.
+
+    After a crash the central current profile is reset (q(0) ~ 1); the next crash can
+    only fire once the *current* has resistively diffused back into a peaked, kink-
+    unstable profile. That time is the local resistive diffusion time tau_R =
+    mu0 a_1^2 / eta. Spitzer resistivity eta ~ T^{-3/2}, so
+
+        tau_R(T) = tau_ref * (T_core / T_ref)^{3/2}.
+
+    A HOTTER core conducts better -> current diffuses *slower* -> a LONGER sawtooth
+    period and a bigger build-up between crashes ("monster sawteeth"). This is why a
+    burning reactor shows a few large crashes, not many small ones — the opposite of a
+    naive "crash whenever q(0)<1 every step" model. `tau_ref` is the period at the
+    reference core temperature `T_ref_keV` (a device-scale calibration, not first
+    principles). Returns seconds.
+    """
+    return tau_ref * (max(float(T_core_keV), 1e-3) / T_ref_keV) ** 1.5
+
+
 def external_q_profile(rho, q_axis=1.4, q_edge=2.6):
     """A stellarator's safety factor: set by the EXTERNAL coils, not plasma current.
 

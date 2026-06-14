@@ -85,6 +85,19 @@ def test_q_from_temperature_peaks_lower_q0():
     assert np.all(np.diff(q_peaked) > -1e-9)             # monotone rising
 
 
+def test_resistive_relaxation_time_scales_as_T_three_halves():
+    """The sawtooth recovery time follows the Spitzer current-diffusion law tau ~ T^1.5:
+    it equals tau_ref at T_ref, grows monotonically with T, and a 4x hotter core gives an
+    8x longer period (so a burning reactor sawtooths slowly -> 'monster' sawteeth)."""
+    assert st.resistive_relaxation_time(20.0, tau_ref=2.0, T_ref_keV=20.0) == pytest.approx(2.0)
+    assert st.resistive_relaxation_time(80.0, tau_ref=2.0, T_ref_keV=20.0) == pytest.approx(16.0)
+    taus = [st.resistive_relaxation_time(T) for T in (5.0, 10.0, 20.0, 30.0)]
+    assert np.all(np.diff(taus) > 0)                     # hotter core -> longer period
+    # exact 3/2 power law: doubling T multiplies the period by 2^1.5
+    ratio = st.resistive_relaxation_time(40.0) / st.resistive_relaxation_time(20.0)
+    assert ratio == pytest.approx(2.0 ** 1.5)
+
+
 def test_crash_profiles_conserve_particles_and_energy():
     """A crash flattens n and T inside r_mix while conserving the particle content and
     the thermal energy exactly."""

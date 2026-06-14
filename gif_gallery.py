@@ -389,7 +389,7 @@ def tokamak_discharge_full():
     pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
     dt, t_end = 2e-3, 22.0
     stride = max(1, int(t_end / dt) // 110)
-    ts, T0, q0, Tfr, crmark, n_saw = [], [], [], [], [], 0
+    ts, T0, q0, Tfr, crmark, n_saw, t_last = [], [], [], [], [], 0, -1e9
     for k in range(int(t_end / dt)):
         t = sim.t
         p_aux = 6e5 * (0.3 + 0.7 * min(t / 4.0, 1.0)) if t < 4.0 else 0.0
@@ -397,9 +397,14 @@ def tokamak_discharge_full():
         if 14.0 <= t < 14.2:
             ft, fp = 1e20 / 6.0 + 3e20, pellet
         sim.step(dt, p_aux_total=p_aux, aux_profile=aux, fuel_total=ft, fuel_profile=fp)
-        n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
-        if crashed:
-            sim.n, sim.T = n2, T2; n_saw += 1
+        # reactor-faithful: gate crashes by the resistive recovery time tau_R ~ T_core^1.5
+        # -> a few big "monster" sawteeth, not many small ones (see sawtooth.py)
+        crashed = False
+        tau_R = sw.resistive_relaxation_time(sim.T[0], tau_ref=2.2, T_ref_keV=20.0)
+        if (t - t_last) >= tau_R:
+            n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
+            if crashed:
+                sim.n, sim.T = n2, T2; n_saw += 1; t_last = t
         if k % stride == 0:
             ts.append(t); T0.append(sim.T[0]); Tfr.append(sim.T.copy())
             q0.append(sw.q_from_temperature(sim.rho, sim.T, 2.2)[0])
@@ -470,7 +475,7 @@ def tokamak_3d_discharge():
     pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
     dt, t_end = 2.5e-4, 22.0                          # refined grid (x8) + smaller dt (/8)
     stride = max(1, int(t_end / dt) // 200)
-    times, T_rt, crashes, n_saw, saw_since = [], [], [], 0, 0
+    times, T_rt, crashes, n_saw, saw_since, t_last = [], [], [], 0, 0, -1e9
     for k in range(int(t_end / dt)):
         t = sim.t
         p_aux = 6e5 * (0.3 + 0.7 * min(t / 4.0, 1.0)) if t < 4.0 else 0.0
@@ -478,9 +483,14 @@ def tokamak_3d_discharge():
         if 14.0 <= t < 14.2:
             ft, fp = 1e20 / 6.0 + 3e20, pellet
         sim.step(dt, p_aux_total=p_aux, aux_profile=aux, fuel_total=ft, fuel_profile=fp)
-        n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
-        if crashed:
-            sim.n, sim.T = n2, T2; n_saw += 1; saw_since += 1
+        # reactor-faithful cadence: a crash can fire only once the resistive current-
+        # redistribution time tau_R ~ T_core^1.5 has elapsed -> the hot core sawtooths
+        # slowly into a few big "monster" crashes, not many small ones
+        tau_R = sw.resistive_relaxation_time(sim.T[0], tau_ref=2.2, T_ref_keV=20.0)
+        if (t - t_last) >= tau_R:
+            n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
+            if crashed:
+                sim.n, sim.T = n2, T2; n_saw += 1; saw_since += 1; t_last = t
         if k % stride == 0:
             times.append(t)
             T_rt.append(sim.T.copy())            # full T(rho) profile -> bullseye face

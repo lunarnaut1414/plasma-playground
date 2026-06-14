@@ -447,10 +447,64 @@ def poloidal_bp_quiver(rings=(0.42, 0.78), n_ang=13, scale=0.17, shape_r=None):
     return np.array(xs), np.array(ys), np.array(us), np.array(vs)
 
 
+def tf_coils(R0, coil_r, n_coils=12, npts=80):
+    """Planar toroidal-field coils: circular rings encircling the plasma tube at evenly
+    spaced toroidal angles (the iconic tokamak 'rings around the donut'). Each ring's
+    field threads through it the long way -> the toroidal field. Returns a list of
+    (X, Y, Z) loops."""
+    th = np.linspace(0.0, 2.0 * np.pi, npts)
+    coils = []
+    for k in range(n_coils):
+        phi = 2.0 * np.pi * k / n_coils
+        rp = R0 + coil_r * np.cos(th)
+        coils.append((rp * np.cos(phi), rp * np.sin(phi), coil_r * np.sin(th)))
+    return coils
+
+
+def central_solenoid(R_sol, z_half, n_rings=15, npts=60):
+    """Central solenoid: a vertical stack of rings on the machine axis — the transformer
+    that drives the tokamak's toroidal plasma current (and hence its poloidal field). A
+    stellarator has none. Returns a list of (X, Y, Z) loops."""
+    ph = np.linspace(0.0, 2.0 * np.pi, npts)
+    return [(R_sol * np.cos(ph), R_sol * np.sin(ph), np.full_like(ph, z))
+            for z in np.linspace(-z_half, z_half, n_rings)]
+
+
+def helical_coils(R0, coil_r, n_coils=2, n_wind=5, npts=700, shape=None):
+    """Helical stellarator coils: conductors that wind poloidally `n_wind` times per
+    toroidal turn as they go around — the twisted external winding that builds the
+    rotational transform from geometry (no plasma current). `shape(theta, phi)` is an
+    optional radial multiplier so the coils hug a shaped (l=2) plasma. Returns a list of
+    (X, Y, Z) curves."""
+    phi = np.linspace(0.0, 2.0 * np.pi, npts)
+    coils = []
+    for k in range(n_coils):
+        th = 2.0 * np.pi * k / n_coils + n_wind * phi
+        rr = coil_r * (shape(th, phi) if shape is not None else np.ones_like(phi))
+        rp = R0 + rr * np.cos(th)
+        coils.append((rp * np.cos(phi), rp * np.sin(phi), rr * np.sin(th)))
+    return coils
+
+
+COIL_COLOR = "#e2e8f0"          # bright silver — the external coil hardware
+
+
+def _coil_legend(ax, has_field, has_coils, coil_name):
+    """Small color-coded legend (top-left of a 3-D panel): field lines + coils."""
+    y = 0.97
+    if has_field:
+        ax.text2D(0.02, y, "— confinement field", transform=ax.transAxes,
+                  color="#67e8f9", fontsize=8)
+        y -= 0.05
+    if has_coils:
+        ax.text2D(0.02, y, f"— {coil_name}", transform=ax.transAxes,
+                  color=COIL_COLOR, fontsize=8)
+
+
 def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
                          cmap="inferno", title="", fps=16, dpi=120, vmin=0.0, vmax=None,
                          crashes=None, dark=True, field_iota=1.0 / 2.2, n_field=3,
-                         field_tor=3.0, show_bp=True):
+                         field_tor=3.0, show_bp=True, coils=()):
     """Two-panel 3-D discharge: a glowing rotating torus beside its poloidal bullseye.
 
     `rho` is the normalized minor-radius grid (0..1); `T_rt` is (n_t, n_rho), the
@@ -507,16 +561,18 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
         axL.clear(); axL.set_axis_off()
         if dark:
             axL.patch.set_alpha(0.0)                   # cleared each frame -> re-hide
+        for cx, cy, cz in coils:                        # external coils (the hardware)
+            axL.plot(cx, cy, cz, color=COIL_COLOR, lw=1.5, alpha=0.85)
         axL.plot_surface(X, Y, Z, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
                          linewidth=0, antialiased=True, shade=True, alpha=0.5)
         for (fx, fy, fz), lw, al in flines:             # confinement field lines (ι=1/q)
             axL.plot(fx, fy, fz, color="#67e8f9", lw=lw, alpha=al)
-        rng = R0 + a
+        rng = R0 + a * 1.45
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        ftxt = "  ·  cyan = confinement field lines (ι=1/q)" if flines else ""
-        axL.set_title(f"3-D torus (surface = core T){ftxt}", color=txt, fontsize=9, pad=0)
+        axL.set_title("3-D torus (plasma glow = core T)", color=txt, fontsize=10, pad=0)
+        _coil_legend(axL, bool(flines), bool(len(coils)), "TF coils + solenoid")
         if crashes is not None and crashes[i] > 0:     # flash over the torus panel
             axL.text2D(0.5, 0.04, "⚡ sawtooth crash", transform=axL.transAxes,
                        color="#ffd166", fontsize=13, fontweight="bold", ha="center")
@@ -553,7 +609,8 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
 def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=0.30,
                            n_periods=5, n_u=150, n_v=46, n_s=46, cmap="inferno",
                            title="", fps=16, dpi=120, vmin=0.0, vmax=None, dark=True,
-                           field_iota=0.45, n_field=3, field_tor=3.0, show_bp=True):
+                           field_iota=0.45, n_field=3, field_tor=3.0, show_bp=True,
+                           coils=()):
     """Two-panel STELLARATOR burn: a glowing twisty torus beside its elliptical bullseye.
 
     The stellarator analog of `animate_discharge_3d`. `rho` is the normalized minor-radius
@@ -620,12 +677,14 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
     if dark:
         for axis in (axL.xaxis, axL.yaxis, axL.zaxis):
             axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
-    rng = R0 + a * (1.0 + delta)
+    rng = R0 + a * 1.7
 
     def draw(i):
         axL.clear(); axL.set_axis_off()
         if dark:
             axL.patch.set_alpha(0.0)
+        for cx, cy, cz in coils:                        # twisted helical coils (hardware)
+            axL.plot(cx, cy, cz, color=COIL_COLOR, lw=1.5, alpha=0.85)
         axL.plot_surface(Xs, Ys, Zs, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
                          linewidth=0, antialiased=True, shade=True, alpha=0.5)
         for (fx, fy, fz), lw, al in flines:             # confinement field lines (geometry)
@@ -633,9 +692,9 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        ftxt = "  ·  cyan = confinement field lines (ι from coils)" if flines else ""
-        axL.set_title(f"3-D stellarator (surface = core T){ftxt}", color=txt,
-                      fontsize=9, pad=0)
+        axL.set_title("3-D stellarator (plasma glow = core T)", color=txt, fontsize=10,
+                      pad=0)
+        _coil_legend(axL, bool(flines), bool(len(coils)), "helical coils")
         axL.text2D(0.5, 0.04, "steady · no sawteeth", transform=axL.transAxes,
                    color="#34d399", fontsize=11, fontweight="bold", ha="center")
 

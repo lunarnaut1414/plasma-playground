@@ -185,6 +185,24 @@ def test_poloidal_bp_quiver_is_circulating():
     assert np.allclose(radial, 0.0, atol=1e-12)
 
 
+def test_tf_coils_and_helical_on_tube():
+    """TF coils and helical coils are circles of radius coil_r around the tube; the
+    central solenoid is a stack of rings on the axis."""
+    R0, cr = 3.0, 1.3
+    for X, Y, Z in anim.tf_coils(R0, cr, n_coils=6):
+        resid = (np.sqrt(X**2 + Y**2) - R0) ** 2 + Z**2 - cr**2
+        assert np.max(np.abs(resid)) < 1e-9
+    helical = anim.helical_coils(R0, cr, n_coils=2, n_wind=4)
+    assert len(helical) == 2
+    for X, Y, Z in helical:
+        resid = (np.sqrt(X**2 + Y**2) - R0) ** 2 + Z**2 - cr**2
+        assert np.max(np.abs(resid)) < 1e-9
+    sol = anim.central_solenoid(1.5, 1.4, n_rings=5)
+    assert len(sol) == 5
+    for X, Y, _Z in sol:
+        assert np.allclose(np.sqrt(X**2 + Y**2), 1.5)
+
+
 def test_animate_stellarator_3d_writes_gif(tmp_path):
     """The two-panel stellarator burn (twisty torus + l=2 elliptical bullseye) animates a
     full profile and writes a multi-frame gif."""

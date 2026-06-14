@@ -15,7 +15,19 @@ you mean:
 | Field-line topology, islands, stochasticity (3-D fields) | POINCARÉ tools, SIESTA | ✅ **yes** — this guide |
 | 3-D MHD stability (kinks, tearing, ELMs, disruptions) | JOREK, NIMROD, M3D-C1 | ◐ a *reduced* taste (T4); real version = research code |
 | Turbulence & transport (gyrokinetics) | GENE, XGC, CGYRO, stella | ❌ no — supercomputer research codes |
+| **Discharge arc**: ignition → burning steady state → fuelling (1-D transport) | TRANSP, ASTRA, RAPTOR | ✅ **yes** — but a *different* simulation; see experiment 09 |
 | Integrated whole-device | TRANSP, IMAS | ❌ no |
+
+> **Two different simulations, two different timescales.** This guide (T0–T4)
+> builds the **magnetic field structure and the plasma's fluid motion** — orbits,
+> islands, MHD instabilities — which live on the **Alfvén timescale (µs–ms)**. The
+> *discharge arc* ("ignition → steady state → fuel injection") is instead an
+> **energy/particle-balance** story on the **confinement timescale (~seconds)**,
+> and is a **transport** problem, not an MHD/CFD one — you cannot march an MHD code
+> across a whole discharge. That arc lives in
+> [experiment 09](../experiments/09_burning_plasma/) (0-D Lawson + 1-D transport).
+> The "staged" plan is eventually to let a T4-style MHD instability fire as an
+> *event* during the experiment-09 burn, coupling the two timescales.
 
 The reachable goal: **"I built a tokamak's 3-D magnetic field, traced banana
 orbits and the q-profile in it, broke axisymmetry to make magnetic islands, and

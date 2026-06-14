@@ -86,3 +86,11 @@ def test_exp08_dispersion_kinetic_runs():
 
 def test_exp08_dispersion_pic_runs():
     _load("08_plasma_waves_dispersion").run_pic(save=False, n_particles=5000, n_steps=60)
+
+
+def test_exp09_burn_zerod_runs():
+    _load("09_burning_plasma").main(mode="zerod", save=False)
+
+
+def test_exp09_burn_1d_runs():
+    _load("09_burning_plasma").run_burn(save=False, n_grid=33)

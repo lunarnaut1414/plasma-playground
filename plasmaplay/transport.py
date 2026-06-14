@@ -725,6 +725,99 @@ class TwoTempTransport1D(Transport1D):
         }
 
 
+# ---------------------------------------------------------------------------
+# F3 — 1-D transport on a real (flux-surface-averaged) equilibrium geometry
+# ---------------------------------------------------------------------------
+class FluxSurfaceTransport1D(Transport1D):
+    """1-D transport on the flux surfaces of a real equilibrium (the F3 rung).
+
+    Same physics as `Transport1D` but the circular column's cylindrical volume
+    element is replaced by the **flux-surface-averaged metrics** of a Grad-Shafranov
+    equilibrium (see `equilibrium_metrics.flux_surface_metrics`): the volume metric
+    V'(rho) = dV/drho and the gradient metric <|grad rho|^2>. The radial transport
+    operator becomes
+
+        (3/2) d(nT)/dt = (1/V') d/drho( V' <|grad rho|^2> n chi dT/drho ) + sources
+
+    discretized by the same backward-Euler / tridiagonal scheme as the parent. When
+    the surfaces are circular (V' ~ rho, <|grad rho|^2> = 1/a^2) this reduces exactly
+    to `Transport1D`'s cylindrical operator — the consistency check in the tests.
+
+    Construct with the metric arrays from `flux_surface_metrics` (given on their own
+    `rho_metric` grid; they are interpolated onto the solver's uniform rho grid).
+    """
+
+    def __init__(self, a, Vprime, grad_rho2, rho_metric=None, *, n_grid=129,
+                 chi=1.0, D=0.4, z_eff=1.0, T_edge=0.1, n_edge=2e19):
+        super().__init__(a, n_grid, chi=chi, D=D, z_eff=z_eff,
+                         T_edge=T_edge, n_edge=n_edge)
+        Vprime = np.asarray(Vprime, dtype=float)
+        grad_rho2 = np.asarray(grad_rho2, dtype=float)
+        if rho_metric is not None:
+            rho_metric = np.asarray(rho_metric, dtype=float)
+            Vprime = np.interp(self.rho, rho_metric, Vprime)
+            grad_rho2 = np.interp(self.rho, rho_metric, grad_rho2)
+        self.Vprime = Vprime
+        self.grad_rho2 = grad_rho2
+
+    def _diffuse(self, f, coeff, dt, f_edge):
+        """Backward-Euler step of (1/V') d/drho( V' <|grad rho|^2> coeff df/drho )."""
+        N = f.size
+        dr = self.drho
+        coeff = np.broadcast_to(np.asarray(coeff, float), f.shape)
+        Vp = self.Vprime
+        g = self.grad_rho2
+        # face quantities at i+1/2 (length N-1)
+        Vp_face = 0.5 * (Vp[:-1] + Vp[1:])
+        g_face = 0.5 * (g[:-1] + g[1:])
+        c_face = 0.5 * (coeff[:-1] + coeff[1:])
+        Wf = Vp_face * g_face * c_face                 # face conductance
+        # cell volume weight; floor the (zero) axis cell to avoid a 1/0
+        Vp_cell = Vp.copy()
+        Vp_cell[0] = max(Vp[1] * 0.25, Vp.max() * 1e-6)
+
+        lower = np.zeros(N)
+        diag = np.ones(N)
+        upper = np.zeros(N)
+        rhs = f.copy()
+
+        for i in range(1, N - 1):
+            w = dt / (Vp_cell[i] * dr ** 2)
+            aw = w * Wf[i - 1]
+            ae = w * Wf[i]
+            lower[i] = -aw
+            upper[i] = -ae
+            diag[i] = 1.0 + aw + ae
+        # axis: zero-gradient -> only the outward face contributes
+        w0 = dt / (Vp_cell[0] * dr ** 2)
+        ae0 = w0 * Wf[0]
+        diag[0] = 1.0 + ae0
+        upper[0] = -ae0
+        # edge: Dirichlet
+        diag[-1] = 1.0
+        lower[-1] = 0.0
+        rhs[-1] = f_edge
+        return _thomas(lower, diag, upper, rhs)
+
+    def _vol_avg(self, field):
+        """Volume average with the real metric: <f> = int f V' drho / int V' drho."""
+        return (np.trapezoid(field * self.Vprime, self.rho)
+                / np.trapezoid(self.Vprime, self.rho))
+
+    def plasma_volume(self):
+        """Total plasma volume int V' drho [m^3] from the metric."""
+        return float(np.trapezoid(self.Vprime, self.rho))
+
+    def energy_confinement_time(self, p_loss_total):
+        """Effective tau_E = W / P_loss [s] from the stored energy and a loss power.
+
+        W = int (3 n T) V' drho is the total thermal energy [J]; `p_loss_total` is the
+        volume-integrated loss power [W]. The number to compare against IPB98(y,2).
+        """
+        W = np.trapezoid(3.0 * self.n * self.T * 1e3 * E * self.Vprime, self.rho)
+        return W / max(p_loss_total, 1e-30)
+
+
 def _thomas(lower, diag, upper, rhs):
     """Thomas algorithm — solve a tridiagonal system in O(N). Arrays are 1-D of
     equal length; lower[0] and upper[-1] are ignored."""

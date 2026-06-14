@@ -17,7 +17,8 @@ import sys
 
 import numpy as np
 
-from plasmaplay import animate as anim, transport as tr
+from plasmaplay import animate as anim, equilibrium_metrics as em, transport as tr
+from plasmaplay.solvers import grad_shafranov_solve
 
 OUT = "outputs"
 
@@ -110,10 +111,74 @@ def burn_1d_two_temperature():
     print(f"  wrote {out}")
 
 
+def _dshaped_equilibrium(n=141):
+    """A shaped Solov'ev Grad-Shafranov equilibrium and its flux-surface metrics.
+
+    Reuses the validated `grad_shafranov_solve` (exp 04). Returns R, Z, psi, the
+    metrics dict, and the chosen boundary flux. The plasma boundary is taken at a
+    fraction of psi_axis so the last closed surface sits inside the rectangular box.
+    """
+    R0 = 3.0
+    R = np.linspace(R0 - 1.3, R0 + 1.3, n)
+    Z = np.linspace(-1.9, 1.9, n)
+    RR, _ = np.meshgrid(R, Z, indexing="ij")
+    psi = grad_shafranov_solve(R, Z, -(RR ** 2 + 1.0), boundary=0.0)
+    psi_b = 0.06 * psi.max()
+    m = em.flux_surface_metrics(R, Z, psi, n_rho=80, psi_bnd=psi_b)
+    return R, Z, psi, m, psi_b
+
+
+def burn_dshaped_cross_section():
+    """A3 (F3): burning-plasma transport on a REAL Grad-Shafranov equilibrium.
+
+    Runs 1-D flux-surface-averaged transport on the V'(rho), <|grad rho|^2> metrics
+    of a shaped Solov'ev equilibrium, then maps T(rho, t) back onto the actual (R,Z)
+    flux surfaces — the headline 'watch the D-shaped plasma burn' movie. Validates
+    the Shafranov shift and the IPB98(y,2) confinement time."""
+    R, Z, psi, m, _ = _dshaped_equilibrium()
+    rho_grid, psi_n = m["rho_grid"], m["psi_n"]
+    inside = (psi_n >= 0.0) & (psi_n <= 1.0)
+    i_ax, _ = np.unravel_index(np.argmax(psi), psi.shape)
+    kappa = np.ptp(Z[(psi_n <= 1).any(axis=0)]) / np.ptp(R[(psi_n <= 1).any(axis=1)])
+
+    fs = tr.FluxSurfaceTransport1D(1.0, m["Vprime"], m["grad_rho2"], rho_metric=m["rho"],
+                                   n_grid=129, chi=0.6, D=0.05, T_edge=0.1, n_edge=2e19)
+    fs.set_state(T=2.0, n=5e19)
+    dt, t_end = 4e-3, 16.0
+    nsteps = int(round(t_end / dt))
+    stride = max(1, nsteps // 100)
+    times, field_fr = [], []
+    for k in range(nsteps):
+        paux = 5.0e5 * min(fs.t / 4.0, 1.0)               # NBI ramp, then held on
+        fs.step(dt, p_aux_total=paux, fuel_total=5e19 / 6.0,
+                fuel_profile=tr.gaussian_deposition(fs.rho, 0.0, 0.4))
+        if k % stride == 0:
+            T2d = np.interp(rho_grid.ravel(), fs.rho, fs.T).reshape(rho_grid.shape)
+            times.append(fs.t); field_fr.append(T2d)
+    field_fr, times = np.array(field_fr), np.array(times)
+
+    p_alpha = fs._vol_avg(tr.fusion_power_density(fs.n, fs.T, "alpha")) * fs.plasma_volume()
+    p_in = p_alpha + 5.0e5 * fs.plasma_volume()
+    tau_sim = fs.energy_confinement_time(p_in)
+    tau_98 = em.confinement_time_ipb98(Ip_MA=7.0, B=5.3, n19=5.0, P_MW=p_in / 1e6,
+                                       R=3.0, a=1.0, kappa=kappa, M=2.5)
+    print(f"  [burn_dshaped] Shafranov shift = {R[i_ax]-3.0:+.2f} m, elongation kappa = {kappa:.2f}")
+    print(f"  [burn_dshaped] steady core T0 = {fs.T[0]:.1f} keV, P_alpha = {p_alpha/1e6:.0f} MW")
+    print(f"  [burn_dshaped] tau_E: sim = {tau_sim:.2f} s, IPB98(y,2) for these params "
+          f"= {tau_98:.2f} s (within a factor of a few; chi is set for the showcase, "
+          f"not fit to the scaling — IPB98 is validated against ITER = 3.7 s in the tests)")
+    out = anim.animate_poloidal_field(
+        R, Z, field_fr, times, path=f"{OUT}/burn_dshaped_cross_section.gif",
+        mask=inside, clabel="T [keV]", cmap="inferno", vmax=float(field_fr.max()),
+        title="Burn on the real D-shaped equilibrium", fps=20, dpi=90)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
     "burn_1d_two_temperature": burn_1d_two_temperature,
+    "burn_dshaped_cross_section": burn_dshaped_cross_section,
 }
 
 

@@ -184,6 +184,47 @@ def animate_cross_section(rho, frames, times=None, *, path, title="",
     return out
 
 
+def animate_poloidal_field(R, Z, frames, times=None, *, path, mask=None, title="",
+                           cmap="inferno", clabel="", fps=20, dpi=90,
+                           vmin=0.0, vmax=None, levels=40):
+    """Animate a 2-D field on a real (R, Z) poloidal cross-section over time.
+
+    Unlike `animate_cross_section` (which revolves a 1-D profile into a *circular*
+    disk), this draws the field on the actual equilibrium grid — so a shaped /
+    D-shaped / outboard-shifted plasma renders with its true geometry. `frames` is
+    (n_t, nR, nZ); `mask` (nR, nZ bool) blanks everything outside the plasma. Used
+    to render T(rho, t) mapped onto the flux surfaces of a Grad-Shafranov solve.
+    """
+    R = np.asarray(R, dtype=float)
+    Z = np.asarray(Z, dtype=float)
+    frames = np.asarray(frames, dtype=float)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    vmax = np.nanmax(frames) if vmax is None else vmax
+    lv = np.linspace(vmin, vmax + 1e-30, levels)
+    if mask is not None:
+        frames = np.where(mask[None], frames, np.nan)
+
+    fig, ax = plt.subplots(figsize=(4.6, 5.6))
+    ax.set_aspect("equal")
+    ax.set_xlabel("R [m]"); ax.set_ylabel("Z [m]")
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    fig.colorbar(sm, ax=ax, label=clabel, shrink=0.85)
+
+    def draw(i):
+        ax.clear()
+        ax.set_aspect("equal")
+        ax.set_xlabel("R [m]"); ax.set_ylabel("Z [m]")
+        ax.contourf(RR, ZZ, frames[i], levels=lv, cmap=cmap, extend="both")
+        t = f"   t = {times[i]:.1f} s" if times is not None else ""
+        ax.set_title(f"{title}{t}")
+
+    anim = FuncAnimation(fig, draw, frames=len(frames), blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
 def animate_torus_3d(edge_value, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
                      cmap="inferno", title="", fps=20, dpi=90, rotate=True,
                      vmin=None, vmax=None):

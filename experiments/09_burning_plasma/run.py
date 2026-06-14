@@ -25,11 +25,16 @@ Two modes:
           (Spitzer) equipartition. Neutral beams heat the ions, fusion alphas heat
           the electrons, so the beam-heated plasma settles at Ti > Te.
 
+  dshaped (F3) 1-D transport on a REAL Grad-Shafranov equilibrium: flux-surface-
+          averaged metrics V'(rho), <|grad rho|^2> from a shaped Solov'ev solve,
+          with T mapped back onto the actual D-shaped flux surfaces.
+
 Run:
     python run.py                 # 1-D burn arc (three phases)
     python run.py --mode zerod    # 0-D ignition / Lawson demo
     python run.py --mode ash      # 0-D ash + dilution + beta-limit
     python run.py --mode twotemp  # 1-D two-temperature (Te, Ti) burn
+    python run.py --mode dshaped  # 1-D transport on the real D-shaped equilibrium
     python run.py --save          # write figures to ./outputs/
 """
 
@@ -40,7 +45,8 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plasmaplay import plotting, transport as tr
+from plasmaplay import equilibrium_metrics as em, plotting, transport as tr
+from plasmaplay.solvers import grad_shafranov_solve
 
 # Geometry of the toy device (large-aspect-ratio circular torus).
 R0 = 3.0        # major radius [m]
@@ -241,6 +247,72 @@ def _plot_twotemp(sim, relax, save):
 
 
 # ---------------------------------------------------------------------------
+# F3 — transport on a real (flux-surface-averaged) D-shaped equilibrium
+# ---------------------------------------------------------------------------
+def run_dshaped(save=False, n_grid=129):
+    print("\n--- 1-D transport on a REAL D-shaped equilibrium (F3) ---")
+
+    # (1) a shaped Solov'ev Grad-Shafranov equilibrium (reuse exp 04's solver)
+    R = np.linspace(R0 - 1.3, R0 + 1.3, 141)
+    Z = np.linspace(-1.9, 1.9, 141)
+    RR, _ = np.meshgrid(R, Z, indexing="ij")
+    psi = grad_shafranov_solve(R, Z, -(RR**2 + 1.0), boundary=0.0)
+    i_ax, _ = np.unravel_index(np.argmax(psi), psi.shape)
+    m = em.flux_surface_metrics(R, Z, psi, n_rho=80, psi_bnd=0.06 * psi.max())
+    psi_n = m["psi_n"]
+    kappa = np.ptp(Z[(psi_n <= 1).any(axis=0)]) / np.ptp(R[(psi_n <= 1).any(axis=1)])
+    print(f"  equilibrium: Shafranov shift = {R[i_ax]-R0:+.2f} m (axis outboard), "
+          f"elongation kappa = {kappa:.2f}, plasma volume = "
+          f"{np.trapezoid(m['Vprime'], m['rho']):.0f} m^3")
+
+    # (2) the IPB98(y,2) scaling, validated against the ITER baseline
+    tau_iter = em.confinement_time_ipb98(15.0, 5.3, 10.0, 87.0, 6.2, 2.0, 1.75)
+    print(f"  IPB98(y,2) confinement law: ITER baseline tau_E = {tau_iter:.2f} s "
+          f"(published ~3.7 s)")
+
+    # (3) the burn on the real geometry
+    fs = tr.FluxSurfaceTransport1D(A_MINOR, m["Vprime"], m["grad_rho2"],
+                                   rho_metric=m["rho"], n_grid=n_grid, chi=0.6, D=0.05,
+                                   T_edge=0.1, n_edge=2e19)
+    fs.set_state(T=2.0, n=5e19)
+    dt = 4e-3
+    for _ in range(int(round(16.0 / dt))):
+        paux = 5.0e5 * min(fs.t / 4.0, 1.0)
+        fs.step(dt, p_aux_total=paux, fuel_total=5e19 / 6.0,
+                fuel_profile=tr.gaussian_deposition(fs.rho, 0.0, 0.4))
+    p_alpha = fs._vol_avg(tr.fusion_power_density(fs.n, fs.T, "alpha")) * fs.plasma_volume()
+    tau_sim = fs.energy_confinement_time(p_alpha + 5.0e5 * fs.plasma_volume())
+    print(f"  steady burn: core T0 = {fs.T[0]:.1f} keV, <T> = {fs._vol_avg(fs.T):.1f} keV, "
+          f"P_alpha = {p_alpha/1e6:.0f} MW (peaked: {fs.T[0] > fs.T[-1]})")
+    print(f"  effective tau_E = {tau_sim:.2f} s (chi set for the showcase; the self-"
+          f"consistent equilibrium-update / beta-limit are the next rungs)")
+
+    _plot_dshaped(R, Z, psi_n, m, fs, save)
+
+
+def _plot_dshaped(R, Z, psi_n, m, fs, save):
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    inside = (psi_n >= 0.0) & (psi_n <= 1.0)
+    T2d = np.interp(m["rho_grid"].ravel(), fs.rho, fs.T).reshape(psi_n.shape)
+    T2d = np.where(inside, T2d, np.nan)
+
+    fig, ax = plt.subplots(1, 2, figsize=(11, 5.2))
+    ax[0].set_aspect("equal")
+    pc = ax[0].contourf(RR, ZZ, T2d, levels=40, cmap="inferno")
+    ax[0].contour(RR, ZZ, psi_n, levels=np.linspace(0.1, 1.0, 8), colors="w",
+                  linewidths=0.4, alpha=0.5)
+    ax[0].set(xlabel="R [m]", ylabel="Z [m]", title="T on the real D-shaped surfaces")
+    fig.colorbar(pc, ax=ax[0], label="T [keV]", shrink=0.85)
+    ax[1].plot(m["rho"], m["Vprime"] / m["Vprime"].max(), label=r"$V'(\rho)$ (norm.)")
+    ax[1].plot(m["rho"], m["grad_rho2"], label=r"$\langle|\nabla\rho|^2\rangle$")
+    ax[1].plot(fs.rho, fs.T / fs.T.max(), label="T (norm.)", ls="--")
+    ax[1].set(xlabel=r"$\rho$", title="Flux-surface metrics & profile")
+    ax[1].legend()
+    fig.tight_layout()
+    _finish(fig, save, "burn_dshaped_cross_section.png")
+
+
+# ---------------------------------------------------------------------------
 # F2 — 1-D burn arc
 # ---------------------------------------------------------------------------
 def _make_sim(n_grid):
@@ -397,6 +469,8 @@ def main(mode="burn", save=False, n_grid=129):
         run_ash(save=save)
     elif mode == "twotemp":
         run_twotemp(save=save, n_grid=n_grid)
+    elif mode == "dshaped":
+        run_dshaped(save=save, n_grid=n_grid)
     else:
         run_burn(save=save, n_grid=n_grid)
 
@@ -404,7 +478,8 @@ def main(mode="burn", save=False, n_grid=129):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--mode", choices=["burn", "zerod", "ash", "twotemp"], default="burn")
+    p.add_argument("--mode", choices=["burn", "zerod", "ash", "twotemp", "dshaped"],
+                   default="burn")
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--n-grid", type=int, default=129)
     args = p.parse_args()

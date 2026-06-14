@@ -1,9 +1,12 @@
 # 09 — Burning plasma (transport) — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** F0 + F1 + F2 + F2.5 implemented (`run.py`), kernel
-> `plasmaplay/transport.py`, tests `tests/test_transport.py` (29 passing). F3
-> (couple to the experiment-04 equilibrium) next.
+> **Status:** F0 + F1 + F2 + F2.5 + F3 implemented (`run.py`), kernels
+> `plasmaplay/transport.py` + `plasmaplay/equilibrium_metrics.py`, tests
+> `tests/test_transport.py` (29) + `tests/test_equilibrium_metrics.py` (7) = 36
+> passing. F3 couples transport to the real equilibrium geometry (fixed
+> equilibrium); the self-consistent Picard re-solve (A3b) and the β-limit / L-H
+> operating modes (F3.5) are the remaining rungs.
 
 ## The question
 
@@ -106,14 +109,27 @@ finite differences. A flux-surface-averaged radial coordinate ρ = r/a.
   profiles separating as the NBI heats the ions; `burn_1d_two_temperature.png` still.
 - **Compute:** seconds; pure NumPy.
 
-### F3 — On the real equilibrium  ◻ not yet (the next rung)
-- **Models:** run the F2 transport on flux-surface-averaged coordinates of the
-  experiment-04 Grad–Shafranov equilibrium — real ψ(R,Z), V'(ψ), ⟨|∇ρ|²⟩ metrics,
-  a D-shaped cross-section. Recompute the equilibrium as the pressure evolves.
-- **Reuses:** `solvers.grad_shafranov_solve` (exp 04), the `tokamak.py` field bridge.
-- **Validation:** flux-surface geometry matches the equilibrium; energy confinement
-  consistent with an L/H scaling for the device parameters.
-- **Compute:** minutes.
+### F3 — On the real equilibrium  ✅ implemented (`--mode dshaped`)
+- **Models:** run the 1-D transport on the **flux-surface-averaged** coordinates of
+  a real Grad–Shafranov (Solov'ev) equilibrium. `equilibrium_metrics.flux_surface_metrics`
+  extracts V'(ρ) and ⟨|∇ρ|²⟩ from ψ(R,Z) via the volume-derivative identity (cell
+  binning, no contour tracing); `transport.FluxSurfaceTransport1D` carries those two
+  metrics through the transport operator `(1/V')∂_ρ(V'⟨|∇ρ|²⟩ nχ ∂_ρT)`. T(ρ,t) is
+  mapped back onto the actual D-shaped flux surfaces for the cross-section render.
+- **Reuses:** `solvers.grad_shafranov_solve` (exp 04, validated).
+- **You'll learn:** how the equilibrium geometry (Shafranov shift, elongation, the
+  V'/⟨|∇ρ|²⟩ metrics) enters transport without going to 2-D; the IPB98(y,2) scaling.
+- **Validation:** circular-limit metrics are analytic (⟨|∇ρ|²⟩=1/a², V'∝ρ, V=2π²R₀a²);
+  the Solov'ev solve shows the outboard Shafranov shift (+0.28 m) and κ≈1.48; the
+  flux-surface solver **reduces exactly to the cylindrical `Transport1D`** on circular
+  metrics (<0.2%); IPB98(y,2) reproduces the ITER baseline τ_E=3.7 s. *(7 tests)*
+- **Deliverable:** `outputs/burn_dshaped_cross_section.gif` — the burn rendered on
+  the real D-shaped flux surfaces; `burn_dshaped_cross_section.png` still.
+- **Scope boundary (honest):** the equilibrium is **fixed** — the self-consistent
+  Picard re-solve as pressure evolves is deferred (A3b), and the showcase χ is set
+  for a realistic ~28 keV burning point rather than fit to IPB98 (the model has no
+  β-limit yet — that is F3.5). The IPB98 helper is validated independently vs ITER.
+- **Compute:** seconds (one GS solve + the 1-D burn).
 
 ### F4 — Predictive transport / real code  ◻ not yet
 - **Models:** replace prescribed χ, D with a transport model (a critical-gradient /

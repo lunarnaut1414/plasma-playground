@@ -317,23 +317,40 @@ def tearing_island_saturation():
     fig, (axW, axF) = plt.subplots(1, 2, figsize=(11, 5.0),
                                    gridspec_kw={"width_ratios": [1, 1.1]})
     mask = np.abs(sim.x) <= 2.5
+    y_o = sim.Ly / 2.0                              # island O-point (center) in y
+    t_sat = times[i_peak]                           # dW/dt-peak = onset of saturation
 
     def draw(j):
         axW.clear(); axF.clear()
-        axW.plot(times[:j + 1], Wt[:j + 1], color="crimson", lw=2)
-        axW.scatter([times[j]], [Wt[j]], color="crimson", zorder=3)
-        axW.set(xlim=(0, times[-1]), ylim=(0, Wt.max() * 1.1),
-                xlabel=r"$t / \tau_A$", ylabel="island width W",
+        anim.apply_house_style(fig, [axW, axF])     # re-apply after clear()
+        axW.axvline(t_sat, color=anim.HOUSE_FG, ls=":", lw=0.9, alpha=0.5)
+        axW.text(t_sat + 4, 0.12, "dW/dt peak\n(saturation onset)", color=anim.HOUSE_FG,
+                 fontsize=8, alpha=0.7, va="bottom")
+        axW.fill_between(times[:j + 1], Wt[:j + 1], color="#ff5a5a", alpha=0.18)
+        axW.plot(times[:j + 1], Wt[:j + 1], color="#ff5a5a", lw=2.2)
+        axW.scatter([times[j]], [Wt[j]], color="#ffd166", s=36, zorder=3,
+                    edgecolor="white", linewidth=0.6)
+        axW.set(xlim=(0, times[-1]), ylim=(0, Wt.max() * 1.12),
+                xlabel=r"$t / \tau_A$", ylabel="island width  W  [sheet widths]",
                 title="Rutherford saturation")
         axF.contourf(yext, sim.x[mask], frames[j][mask], levels=40, cmap="RdBu_r")
-        axF.contour(yext, sim.x[mask], frames[j][mask], levels=30, colors="k",
-                    linewidths=0.5)
-        axF.axhline(0.0, color="0.4", ls=":", lw=0.8)
-        axF.set(xlabel="y", ylabel="x", title=f"flux contours   t = {times[j]:.0f}")
+        axF.contour(yext, sim.x[mask], frames[j][mask], levels=12, colors="#dfe6f0",
+                    linewidths=0.5, alpha=0.30)
+        axF.axhline(0.0, color=anim.HOUSE_FG, ls=":", lw=0.8, alpha=0.5)
+        # tie the panels: a gold bar at the O-point whose height IS the current W
+        w = Wt[j]
+        axF.plot([y_o, y_o], [-w / 2, w / 2], color="#ffd166", lw=2.4,
+                 solid_capstyle="butt", zorder=4)
+        axF.plot([y_o - 0.25, y_o + 0.25], [w / 2, w / 2], color="#ffd166", lw=2.4)
+        axF.plot([y_o - 0.25, y_o + 0.25], [-w / 2, -w / 2], color="#ffd166", lw=2.4)
+        axF.text(y_o + 0.4, 0.0, "W", color="#ffd166", fontsize=11, fontweight="bold",
+                 va="center")
+        axF.set(xlabel="y", ylabel="x",
+                title=f"magnetic island (flux contours)   t = {times[j]:5.0f} " r"$\tau_A$")
 
     an = FuncAnimation(fig, draw, frames=len(frames), blit=False)
     out = f"{OUT}/tearing_island_saturation.gif"
-    an.save(out, writer=PillowWriter(fps=16), dpi=90)
+    an.save(out, writer=PillowWriter(fps=16), dpi=120)
     plt.close(fig)
     print(f"  wrote {out}")
 

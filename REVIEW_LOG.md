@@ -52,6 +52,26 @@ Verify: regenerated (179 sawteeth, core 2-30 keV); re-dumped+Read frames — gor
 correct. pytest 208 passed (+2: discharge_3d + house_style); ruff clean. size 4.5 MB (<6).
 Next: R2 = tearing_island_saturation.
 
+## R2 — tearing_island_saturation — TWEAK — (pending commit)
+Scores (before): A5 B4 C3 D2  ->  (after): A5 B4 C5 D5
+Saw: physics is textbook (X-point reconnects, island grows, W(t) S-curve bends into
+saturation) and pacing was actually fine (island visible by t~73, growth spread across
+300 tau_A — my "flat then sudden" worry was wrong). BUT default white matplotlib clashing
+with the new dark gallery, and the flux panel had 30 black contour lines = a busy barcode;
+the two panels weren't tied together.
+Defect: D-axis (default look, barcode contours, white bg) + C-axis (no saturation-onset
+marker, no W<->island linkage).
+Did: pure-style TWEAK. Dark house style (extended anim.apply_house_style to also style 2-D
+ticks/spines/labels, re-applied each frame after ax.clear). Contour guide lines 30->12,
+light + alpha 0.30 (de-barcoded). Tied the panels: a gold bar at the island O-point
+(y=Ly/2) whose height IS the current W(t) — grows with the island, links to the left curve.
+Marked the dW/dt-peak (saturation onset) with a line+label; filled+brightened the W(t)
+curve, gold current-point marker. dpi 90->120.
+Verify: regenerated (W->2.23, dW/dt peak at t=133, ratio 0.28 — unchanged physics);
+re-dumped+Read — clean island, the W-bar tracks growth. pytest 208 passed; ruff clean.
+No new test (style-only; apply_house_style already covered). size 2.8 MB.
+Next: R3 = stellarator_flux_surfaces.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

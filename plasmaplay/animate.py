@@ -79,6 +79,15 @@ def apply_house_style(fig, axes=(), *, dark=True):
         axes = [axes]
     for ax in axes:
         ax.set_facecolor(HOUSE_BG)
+        # style 2-D axis furniture so light text/ticks read on the dark background
+        # (harmless for 3-D axes, which carry no 2-D spines). Re-call after ax.clear().
+        for spine in getattr(ax, "spines", {}).values():
+            spine.set_color(HOUSE_FG)
+            spine.set_alpha(0.4)
+        ax.tick_params(colors=HOUSE_FG, labelcolor=HOUSE_FG)
+        ax.xaxis.label.set_color(HOUSE_FG)
+        ax.yaxis.label.set_color(HOUSE_FG)
+        ax.title.set_color(HOUSE_FG)
     return HOUSE_FG
 
 

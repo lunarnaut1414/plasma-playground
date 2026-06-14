@@ -25,7 +25,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter  # noqa: E402
 
 from plasmaplay import (  # noqa: E402
     animate as anim, cylinder_mhd as cm, equilibrium_metrics as em,
-    operating_limits as ol, reduced_mhd as rm, transport as tr,
+    operating_limits as ol, reduced_mhd as rm, sawtooth as sw, transport as tr,
 )
 from plasmaplay.solvers import grad_shafranov_solve  # noqa: E402
 
@@ -337,6 +337,71 @@ def tearing_island_saturation():
     print(f"  wrote {out}")
 
 
+def tokamak_discharge_full():
+    """Track C (the integrated discharge): the F2 transport burn (seconds) coupled to
+    m=1 SAWTOOTH crashes (instantaneous on that scale) — ignition -> burning H-mode
+    with periodic sawteeth -> pellet fuel injection -> settling. Left: the poloidal
+    cross-section T(rho,t). Right: the core T0(t) sawtoothing and q(0) crossing 1.
+    The headline two-timescale 'flight simulator' (staged coupling, named as such)."""
+    a = 1.0
+    sim = tr.Transport1D(a, n_grid=129, chi=0.10, D=0.04, T_edge=0.1, n_edge=2e19,
+                         B=5.3, beta_limit=0.04, beta_stiffness=40.0)
+    sim.set_state(T=2.0, n=1e20)
+    aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
+    hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
+    pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
+    dt, t_end = 2e-3, 22.0
+    stride = max(1, int(t_end / dt) // 110)
+    ts, T0, q0, Tfr, crmark, n_saw = [], [], [], [], [], 0
+    for k in range(int(t_end / dt)):
+        t = sim.t
+        p_aux = 6e5 * (0.3 + 0.7 * min(t / 4.0, 1.0)) if t < 4.0 else 0.0
+        ft, fp = (1e20 / 6.0, hold)
+        if 14.0 <= t < 14.2:
+            ft, fp = 1e20 / 6.0 + 3e20, pellet
+        sim.step(dt, p_aux_total=p_aux, aux_profile=aux, fuel_total=ft, fuel_profile=fp)
+        n2, T2, crashed = sw.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=2.2)
+        if crashed:
+            sim.n, sim.T = n2, T2; n_saw += 1
+        if k % stride == 0:
+            ts.append(t); T0.append(sim.T[0]); Tfr.append(sim.T.copy())
+            q0.append(sw.q_from_temperature(sim.rho, sim.T, 2.2)[0])
+            crmark.append(crashed)
+    ts, T0, q0, Tfr = np.array(ts), np.array(T0), np.array(q0), np.array(Tfr)
+    print(f"  [tokamak_discharge_full] {n_saw} sawteeth; q(0) min {q0.min():.2f}; "
+          f"core T0 sawtooths {T0[(ts > 5) & (ts < 14)].min():.0f}-"
+          f"{T0[(ts > 5) & (ts < 14)].max():.0f} keV")
+
+    theta = np.linspace(0, 2 * np.pi, 160)
+    RR, TT = np.meshgrid(sim.rho, theta)
+    X, Y = RR * np.cos(TT), RR * np.sin(TT)
+    vmax = float(Tfr.max())
+    fig, (axc, axt) = plt.subplots(1, 2, figsize=(11, 5.0),
+                                   gridspec_kw={"width_ratios": [1, 1.25]})
+    axc.set_aspect("equal")
+
+    def draw(i):
+        axc.clear(); axc.set_aspect("equal"); axc.set_xticks([]); axc.set_yticks([])
+        axc.contourf(X, Y, np.broadcast_to(Tfr[i], RR.shape), levels=40,
+                     cmap="inferno", vmin=0, vmax=vmax)
+        axc.set_title(f"cross-section  t = {ts[i]:.1f} s")
+        axt.clear()
+        axt.axvspan(0, 4, color="gold", alpha=0.15)
+        axt.axvline(14.0, color="purple", ls="--", lw=1.0)
+        axt.plot(ts[:i + 1], T0[:i + 1], color="crimson", lw=1.0, label="core T0 [keV]")
+        axt.plot(ts[:i + 1], 10 * q0[:i + 1], color="navy", lw=0.9, label="10*q(0)")
+        axt.axhline(10.0, color="navy", ls=":", lw=0.8)
+        axt.set(xlim=(0, t_end), ylim=(0, max(35, vmax * 1.1)), xlabel="t [s]",
+                title="ignition | burning H-mode + sawteeth | pellet")
+        axt.legend(loc="upper right", fontsize=8)
+
+    an = FuncAnimation(fig, draw, frames=len(ts), blit=False)
+    out = f"{OUT}/tokamak_discharge_full.gif"
+    an.save(out, writer=PillowWriter(fps=14), dpi=90)
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
@@ -345,6 +410,7 @@ GALLERY = {
     "operating_modes": operating_modes,
     "kink_eigenmode": kink_eigenmode,
     "tearing_island_saturation": tearing_island_saturation,
+    "tokamak_discharge_full": tokamak_discharge_full,
 }
 
 

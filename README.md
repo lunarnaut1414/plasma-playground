@@ -67,6 +67,8 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 | 09 | Burning plasma (transport) ✅ | ignition → steady burn → fuel injection; He-ash & β-limit; two-temperature Te/Ti; real D-shaped equilibrium; operating modes (L/H/disruption) | [plan](experiments/09_burning_plasma/PLAN.md) | numpy (ASTRA-like) |
 | 10 | Tokamak MHD stability ✅ | straight-tokamak linear stability (kink, tearing Δ′, FKR); reduced-MHD island + Rutherford saturation; Kadomtsev sawtooth crash | [plan](experiments/10_tokamak_stability/PLAN.md) | numpy / scipy |
 
+**Coupled discharge (Track C):** the transport burn (exp 09) and the MHD sawtooth (exp 10) run together — `python experiments/09_burning_plasma/run.py --mode coupled` fires m=1 crashes during the burn (staged two-timescale model). See [docs/C1_COUPLED_DISCHARGE.md](docs/C1_COUPLED_DISCHARGE.md).
+
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 
 ### The 3-D tokamak ladder (T0 → T4) ✅ built

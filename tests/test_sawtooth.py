@@ -71,3 +71,47 @@ def test_single_crash_reconnects_core():
     assert sim.T[inside].std() < 1e-10                  # core temperature flattened
     assert psi_max_after < 0.05 * psi_max_before        # helical flux reconnected
     assert e1 == pytest.approx(e0, rel=1e-10)           # thermal energy conserved
+
+
+# --- Track C: coupling the sawtooth into a transport burn -------------------
+def test_q_from_temperature_peaks_lower_q0():
+    """A peaked (hot-core) temperature gives a lower q(0) than a flat one (Spitzer
+    current peaks on axis), and q rises monotonically to q_edge at the edge."""
+    rho = np.linspace(0.0, 1.0, 129)
+    q_peaked = st.q_from_temperature(rho, 1.0 - 0.95 * rho ** 2, q_edge=3.0)
+    q_flat = st.q_from_temperature(rho, np.ones_like(rho), q_edge=3.0)
+    assert q_peaked[0] < q_flat[0]                       # peaking lowers q(0)
+    assert q_peaked[-1] == pytest.approx(3.0, rel=1e-6)  # normalised to q_edge
+    assert np.all(np.diff(q_peaked) > -1e-9)             # monotone rising
+
+
+def test_crash_profiles_conserve_particles_and_energy():
+    """A crash flattens n and T inside r_mix while conserving the particle content and
+    the thermal energy exactly."""
+    rho = np.linspace(0.0, 1.0, 129)
+    n = 1e20 * (1.0 - 0.5 * rho ** 2)
+    T = 20.0 * (1.0 - 0.9 * rho ** 2)
+    r_mix = 0.5
+    inside = rho <= r_mix
+    P0 = np.trapezoid(n[inside] * rho[inside], rho[inside])
+    E0 = np.trapezoid(3 * n[inside] * T[inside] * rho[inside], rho[inside])
+    n2, T2 = st.crash_profiles(rho, n, T, r_mix)
+    P1 = np.trapezoid(n2[inside] * rho[inside], rho[inside])
+    E1 = np.trapezoid(3 * n2[inside] * T2[inside] * rho[inside], rho[inside])
+    assert P1 == pytest.approx(P0, rel=1e-10)            # particles conserved
+    assert E1 == pytest.approx(E0, rel=1e-10)            # thermal energy conserved
+    assert T2[inside].std() / T2[inside].mean() < 1e-9   # core flattened
+
+
+def test_sawtooth_event_fires_only_on_unstable_core():
+    """sawtooth_event crashes a hot, kink-unstable core (q(0) < trigger) and leaves a
+    cool, kink-stable one untouched (the events-off / Track-A regression)."""
+    rho = np.linspace(0.0, 1.0, 129)
+    n = np.full_like(rho, 1e20)
+    T_hot = 1.0 - 0.97 * rho ** 2                         # strongly peaked -> q(0) low
+    _, _, crashed_hot = st.sawtooth_event(rho, n, T_hot, q_edge=2.0)
+    assert crashed_hot                                    # the core reconnects
+    T_flat = np.full_like(rho, 1.0)                       # flat -> kink-stable
+    n_out, T_out, crashed_flat = st.sawtooth_event(rho, n, T_flat, q_edge=2.0)
+    assert not crashed_flat                               # no event...
+    assert np.array_equal(T_out, T_flat) and np.array_equal(n_out, n)  # ...state intact

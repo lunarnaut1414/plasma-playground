@@ -156,13 +156,17 @@ finite differences. A flux-surface-averaged radial coordinate ρ = r/a.
 - **Validation:** reproduce a published discharge's profile evolution or Q.
 - **Compute:** minutes–hours.
 
-## Toward MHD/CFD (the "both, staged" plan)
+## Toward MHD/CFD (the "both, staged" plan)  ✅ Track C coupled (`--mode coupled`)
 
-This experiment is the **transport** half. The **MHD/CFD** half — actually
-watching the plasma fluid move and go unstable (sawtooth, tearing, ELM) — lives in
-experiment 06 (`fvm.py`) and the T4 rung of [`docs/3D_TOKAMAK_GUIDE.md`]. The
-staged goal is to let an MHD instability fire as an *event* during the burn (e.g.
-a sawtooth crash that flattens the core profile), coupling the two timescales.
+This experiment is the **transport** half; the **MHD** half lives in experiment 10
+(`cylinder_mhd`, `reduced_mhd`, `sawtooth`). The two are now **coupled** (NIGHT.md
+Track C, `docs/C1_COUPLED_DISCHARGE.md`): `--mode coupled` runs the transport burn and
+fires an m=1 **sawtooth crash** (via `sawtooth.sawtooth_event`) whenever the burning
+core drives q(0) below the kink threshold — the staged two-timescale model (transport
+on τ_E seconds; the MHD crash instantaneous on that scale). Validated: each crash
+conserves particles + energy; **events off recovers the pure Track-A burn**; ~179
+sawteeth over a discharge, core T0 sawtoothing 23–26 keV. Deliverable:
+`tokamak_discharge_full.gif`. (A tearing/island event and the 3-D render are next.)
 
 ## Diagnostics you'll reuse
 Triple-product / Lawson check, Q = P_fusion/P_aux, profile snapshots, the poloidal

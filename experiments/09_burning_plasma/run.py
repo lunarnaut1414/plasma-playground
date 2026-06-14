@@ -33,6 +33,10 @@ Two modes:
           limit, the L->H power threshold, and three 0-D burns (L-mode, H-mode, and
           a reversible over-fuel density-limit disruption).
 
+  coupled (Track C) the event-coupled discharge: the 1-D transport burn WITH m=1
+          sawtooth crashes fired whenever the burning core drives q(0) below the kink
+          threshold (the staged two-timescale coupling). Reuses plasmaplay/sawtooth.
+
 Run:
     python run.py                 # 1-D burn arc (three phases)
     python run.py --mode zerod    # 0-D ignition / Lawson demo
@@ -40,6 +44,7 @@ Run:
     python run.py --mode twotemp  # 1-D two-temperature (Te, Ti) burn
     python run.py --mode dshaped  # 1-D transport on the real D-shaped equilibrium
     python run.py --mode modes    # operating limits: L-mode / H-mode / disruption
+    python run.py --mode coupled  # event-coupled discharge (burn + sawteeth)
     python run.py --save          # write figures to ./outputs/
 """
 
@@ -51,7 +56,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from plasmaplay import (
-    equilibrium_metrics as em, operating_limits as ol, plotting, transport as tr,
+    equilibrium_metrics as em, operating_limits as ol, plotting, sawtooth as st,
+    transport as tr,
 )
 from plasmaplay.solvers import grad_shafranov_solve
 
@@ -251,6 +257,93 @@ def _plot_twotemp(sim, relax, save):
     ax[1].legend()
     fig.tight_layout()
     _finish(fig, save, "burn_1d_two_temperature.png")
+
+
+# ---------------------------------------------------------------------------
+# Track C — event-coupled discharge: a transport burn WITH sawtooth crashes
+# ---------------------------------------------------------------------------
+Q_EDGE = 2.2          # edge safety factor for the Spitzer-q model (sets q-profile)
+
+
+def simulate_coupled(events=True, t_end=22.0, n_grid=129):
+    """The staged two-timescale discharge: the F2 transport burn (seconds) with m=1
+    sawtooth crashes (instantaneous on that scale) fired whenever the burning core
+    drives q(0) below the kink threshold. Returns the time history + profile snapshots.
+    With `events=False` it is exactly the pure Track-A burn (the regression check)."""
+    sim = tr.Transport1D(A_MINOR, n_grid=n_grid, chi=CHI, D=D_PART, T_edge=0.1,
+                         n_edge=2e19, B=B_FIELD, beta_limit=0.04, beta_stiffness=40.0)
+    sim.set_state(T=2.0, n=N_TARGET)
+    aux = tr.gaussian_deposition(sim.rho, 0.0, 0.35)
+    hold = tr.gaussian_deposition(sim.rho, 0.0, 0.40)
+    pellet = tr.gaussian_deposition(sim.rho, 0.35, 0.12)
+    hist = {k: [] for k in ("t", "T0", "q0", "Pfus", "crash")}
+    snaps, max_dE = {}, 0.0
+    for _ in range(int(round(t_end / DT))):
+        t = sim.t
+        p_aux = P_AUX_PEAK * (0.3 + 0.7 * t / T_IGN_END) if t < T_IGN_END else 0.0
+        fuel_total, fuel_profile = N_TARGET / TAU_P, hold
+        if T_PELLET <= t < T_PELLET + 0.2:
+            fuel_total, fuel_profile = N_TARGET / TAU_P + PELLET_RATE, pellet
+        sim.step(DT, p_aux_total=p_aux, aux_profile=aux,
+                 fuel_total=fuel_total, fuel_profile=fuel_profile)
+        crashed = False
+        if events:
+            E0 = np.trapezoid(3 * sim.n * sim.T * sim.rho, sim.rho)
+            n2, T2, crashed = st.sawtooth_event(sim.rho, sim.n, sim.T, q_edge=Q_EDGE)
+            if crashed:
+                E1 = np.trapezoid(3 * n2 * T2 * sim.rho, sim.rho)
+                max_dE = max(max_dE, abs(E1 / E0 - 1))
+                sim.n, sim.T = n2, T2
+        d = sim.diagnostics()
+        hist["t"].append(t); hist["T0"].append(d["T0"]); hist["crash"].append(crashed)
+        hist["q0"].append(st.q_from_temperature(sim.rho, sim.T, Q_EDGE)[0])
+        hist["Pfus"].append(d["P_fusion"] * PLASMA_VOLUME / 1e6)
+        for label, tt in (("ignited", T_IGN_END), ("steady", T_STEADY_END - 0.1),
+                          ("post-pellet", T_PELLET + 1.5)):
+            if label not in snaps and sim.t >= tt:
+                snaps[label] = (sim.rho.copy(), sim.T.copy())
+    hist = {k: np.asarray(v) for k, v in hist.items()}
+    return hist, snaps, max_dE
+
+
+def run_coupled(save=False, n_grid=129):
+    print("\n--- Track C: event-coupled discharge (transport burn + sawteeth) ---")
+    print("  staged two-timescale model: transport on tau_E (~s); MHD crashes "
+          "instantaneous on that scale")
+    hist, snaps, max_dE = simulate_coupled(events=True, n_grid=n_grid)
+    n_saw = int(hist["crash"].sum())
+    steady = (hist["t"] > T_IGN_END + 1) & (hist["t"] < T_STEADY_END)
+    print(f"  burning core drives q(0) to {hist['q0'].min():.2f} -> "
+          f"{n_saw} sawtooth crashes over the discharge")
+    print(f"  steady H-mode core T0 sawtooths between "
+          f"{hist['T0'][steady].min():.1f}-{hist['T0'][steady].max():.1f} keV")
+    print(f"  energy conserved across every crash: max relative drift = {max_dE:.1e}")
+
+    # the regression: turning events OFF is pure Track-A (no crashes); the sawteeth
+    # demonstrably change the burn (otherwise the coupling would be a no-op).
+    off, _, _ = simulate_coupled(events=False, n_grid=n_grid)
+    assert int(off["crash"].sum()) == 0                  # events off -> zero crashes
+    print(f"  events OFF -> pure Track-A burn (0 crashes); the sawteeth shift the core "
+          f"by up to {np.abs(hist['T0'] - off['T0']).max():.1f} keV (coupling is real)")
+    _plot_coupled(hist, save)
+
+
+def _plot_coupled(hist, save):
+    fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+    ax[0].axvspan(0, T_IGN_END, color="gold", alpha=0.15)
+    ax[0].axvline(T_PELLET, color="purple", ls="--", lw=1.0)
+    ax[0].plot(hist["t"], hist["T0"], color="crimson", lw=0.9, label="core T0 (sawtoothing)")
+    ax[0].set(ylabel="T0 [keV]", title="Event-coupled discharge: ignition -> "
+              "burning H-mode + sawteeth -> pellet")
+    ax[0].legend(loc="lower right")
+    ax[1].axhline(1.0, color="0.6", ls=":", lw=0.9, label="q=1 (sawtooth trigger)")
+    ax[1].plot(hist["t"], hist["q0"], color="navy", lw=0.9, label="q(0)")
+    ax[1].plot(hist["t"], hist["Pfus"] / hist["Pfus"].max() * 1.5, color="seagreen",
+               lw=0.9, alpha=0.7, label="P_fusion (norm.)")
+    ax[1].set(xlabel="t [s]", ylabel="q(0)", title="q(0) sawtooths across the kink threshold")
+    ax[1].legend(loc="upper right")
+    fig.tight_layout()
+    _finish(fig, save, "tokamak_discharge_full.png")
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +646,8 @@ def main(mode="burn", save=False, n_grid=129):
         run_dshaped(save=save, n_grid=n_grid)
     elif mode == "modes":
         run_modes(save=save)
+    elif mode == "coupled":
+        run_coupled(save=save, n_grid=n_grid)
     else:
         run_burn(save=save, n_grid=n_grid)
 
@@ -561,7 +656,8 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--mode",
-                   choices=["burn", "zerod", "ash", "twotemp", "dshaped", "modes"],
+                   choices=["burn", "zerod", "ash", "twotemp", "dshaped", "modes",
+                            "coupled"],
                    default="burn")
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--n-grid", type=int, default=129)

@@ -73,6 +73,63 @@ def kadomtsev_flatten(r, field, r_mix):
     return out
 
 
+def q_from_temperature(rho, T, q_edge=3.0, alpha=1.5):
+    """Model safety-factor profile q(rho) from a Spitzer-ohmic current J ~ T^alpha.
+
+    A hot core conducts better (Spitzer sigma ~ T^{3/2}), so the ohmic current peaks
+    where the plasma is hot; a peaked current lowers q on axis. With B_theta(rho) =
+    (1/rho) int_0^rho J rho' drho' and q ~ rho/B_theta, normalised so q(1) = q_edge
+    (fixed total current),
+
+        q(rho) = q_edge * G(1) * rho^2 / G(rho),   G(rho) = int_0^rho (T/T_edge)^alpha rho' drho'.
+
+    The point of the coupling (Track C): as the burn peaks the core temperature, q(0)
+    falls — and when it crosses 1 the m=1 internal kink fires a sawtooth crash.
+    """
+    rho = np.asarray(rho, dtype=float)
+    T = np.asarray(T, dtype=float)
+    j = np.maximum(T / max(T[-1], 1e-9), 1e-6) ** alpha    # ohmic current shape
+    G = cumulative_trapezoid(j * rho, rho, initial=0.0)
+    G = np.maximum(G, 1e-30)
+    q = q_edge * G[-1] * rho ** 2 / G
+    q[0] = q[1]                                            # finite on-axis value
+    return q
+
+
+def crash_profiles(rho, n, T, r_mix):
+    """Apply a Kadomtsev crash to a (n, T) burn state inside r_mix, conserving BOTH
+    the particle content (int n rho drho) and the thermal energy (int 3 n T rho drho)
+    exactly. Returns (n_new, T_new): density and energy density are each flattened to
+    their area-weighted means inside r_mix, then T = energy/(3 n)."""
+    n_new = kadomtsev_flatten(rho, n, r_mix)               # conserves particles
+    w_new = kadomtsev_flatten(rho, 3.0 * n * T, r_mix)     # conserves thermal energy
+    T_new = np.asarray(T, dtype=float).copy()
+    inside = np.asarray(rho) <= r_mix
+    T_new[inside] = w_new[inside] / (3.0 * np.maximum(n_new[inside], 1e9))
+    return n_new, T_new
+
+
+def sawtooth_event(rho, n, T, *, q_edge=3.0, alpha=1.5, q_trigger=0.93,
+                   min_radius=0.05):
+    """Fire a sawtooth crash IF the Spitzer q-profile of this state has q(0) below the
+    trigger (the m=1 internal kink reaches finite amplitude slightly below q(0)=1, the
+    observed crash threshold ~0.9-0.95).
+
+    Returns (n, T, crashed): the post-crash profiles (particle- and energy-conserving)
+    and whether a crash occurred. The reusable MHD-event trigger for the coupled
+    discharge — it leaves the state untouched when the core is kink-stable. The
+    trigger margin is what makes crashes finite-amplitude and well-separated rather
+    than firing every step at the marginal point."""
+    q = q_from_temperature(rho, T, q_edge, alpha)
+    if q[0] >= q_trigger:
+        return n, T, False
+    r_mix = mixing_radius(rho, q)
+    if r_mix is None or r_mix < min_radius:
+        return n, T, False
+    n2, T2 = crash_profiles(rho, n, T, r_mix)
+    return n2, T2, True
+
+
 class SawtoothCycle:
     """A 1-D ohmic sawtooth: resistive current peaking + Kadomtsev crashes.
 

@@ -278,7 +278,8 @@ def animate_operating_space(tracks, times=None, *, path, xlabel="", ylabel="",
 
 def animate_poloidal_field(R, Z, frames, times=None, *, path, mask=None, title="",
                            cmap="inferno", clabel="", fps=20, dpi=90,
-                           vmin=0.0, vmax=None, levels=40):
+                           vmin=0.0, vmax=None, levels=40, dark=True,
+                           show_boundary=True):
     """Animate a 2-D field on a real (R, Z) poloidal cross-section over time.
 
     Unlike `animate_cross_section` (which revolves a 1-D profile into a *circular*
@@ -296,19 +297,30 @@ def animate_poloidal_field(R, Z, frames, times=None, *, path, mask=None, title="
     if mask is not None:
         frames = np.where(mask[None], frames, np.nan)
 
-    fig, ax = plt.subplots(figsize=(4.6, 5.6))
+    bnd = mask.astype(float) if (mask is not None and show_boundary) else None
+
+    fig, ax = plt.subplots(figsize=(4.9, 5.6))
+    txt = apply_house_style(fig, [ax], dark=dark)
     ax.set_aspect("equal")
     ax.set_xlabel("R [m]"); ax.set_ylabel("Z [m]")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-    fig.colorbar(sm, ax=ax, label=clabel, shrink=0.85)
+    cb = fig.colorbar(sm, ax=ax, label=clabel, shrink=0.85)
+    cb.ax.yaxis.label.set_color(txt); cb.ax.tick_params(colors=txt)
+    cb.outline.set_edgecolor(txt)
 
     def draw(i):
         ax.clear()
         ax.set_aspect("equal")
-        ax.set_xlabel("R [m]"); ax.set_ylabel("Z [m]")
+        if dark:
+            ax.set_facecolor(HOUSE_BG)
+        ax.set_xlabel("R [m]", color=txt); ax.set_ylabel("Z [m]", color=txt)
+        ax.tick_params(colors=txt)
         ax.contourf(RR, ZZ, frames[i], levels=lv, cmap=cmap, extend="both")
+        if bnd is not None:                                       # crisp plasma boundary
+            ax.contour(RR, ZZ, bnd, levels=[0.5], colors=[txt], linewidths=1.1,
+                       alpha=0.6)
         t = f"   t = {times[i]:.1f} s" if times is not None else ""
-        ax.set_title(f"{title}{t}")
+        ax.set_title(f"{title}{t}", color=txt, fontsize=10)
 
     anim = FuncAnimation(fig, draw, frames=len(frames), blit=False)
     out = _prepare(path)

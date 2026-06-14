@@ -130,6 +130,17 @@ def test_apply_house_style_dark_and_light():
     plt.close(fig2)
 
 
+def test_animate_poloidal_field_writes_gif(tmp_path):
+    """A masked 2-D field on an (R,Z) grid animates with a colorbar + boundary outline."""
+    R = np.linspace(2.0, 4.0, 16); Z = np.linspace(-1.5, 1.5, 18)
+    RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+    mask = ((RR - 3.0) ** 2 + ZZ**2) < 1.0
+    frames = np.array([(5 + 3 * k) * np.exp(-((RR - 3) ** 2 + ZZ**2)) for k in range(5)])
+    out = anim.animate_poloidal_field(R, Z, frames, np.arange(5.0), path=tmp_path / "p.gif",
+                                      mask=mask, clabel="T", fps=5, dpi=60)
+    assert out.exists() and Image.open(out).n_frames == 5
+
+
 def test_animate_operating_space_writes_gif(tmp_path):
     """Several tracks sweep an (n,T) operating diagram with a band + Greenwald vline;
     the dark-themed movie writes a multi-frame gif."""

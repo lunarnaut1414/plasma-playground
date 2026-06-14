@@ -159,6 +159,27 @@ re-dumped+Read — dark, the disruption clearly diving past n_G. pytest 209 (+1)
 size 0.49 MB.
 Next: R8 = burn_dshaped_cross_section.
 
+## R8 — burn_dshaped_cross_section — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D3  ->  (after): A5 B5 C5 D4
+Saw: burning plasma on a real Grad-Shafranov equilibrium, glowing core to 28 keV,
+Shafranov-shifted outboard — correct. Title CLIPPED ("Burn"->"urn"); white bg; no fusion
+readout; shape reads as a blob.
+Detour (recorded honestly): tried adding an LCFS boundary outline + raising psi_b 0.06->0.35
+so the surface closes inside the box. But this Solov'ev (source -(R^2+1) on a rectangle)
+gives RECTANGULAR-ish flux surfaces, not a triangular D — even closed it's a rounded
+rectangle, and the higher psi_b cooled the burn to 15.6 keV/12 MW (vs the documented
+28 keV/75 MW in docs/A3). Overreach -> REVERTED psi_b to 0.06 and dropped the outline here.
+Did NOT fake a prettier D.
+Did: TWEAK (style). Dark house style in the SHARED anim.animate_poloidal_field (dark bg,
+styled colorbar, light labels) + new params dark=True, show_boundary=True (boundary outline
+available for genuinely-shaped equilibria; passed show_boundary=False here since this
+equilibrium fills the box). Fixed title clip (-> "D-shaped burn · κ=1.48", shorter + wider
+figure), dpi 90->110. Added the previously-MISSING smoke test for animate_poloidal_field.
+Verify: regenerated (Shafranov +0.28 m, kappa 1.48, 28 keV, 75 MW — all unchanged/restored);
+re-dumped+Read — clean dark glowing cross-section. pytest 210 (+1); ruff clean. 1.4 MB.
+Note: D-axis stays 4 (the equilibrium genuinely isn't a triangular D; not faked — the repo
+calls it D-shaped throughout, kept consistent). Next: R9 = burn_1d_two_temperature.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

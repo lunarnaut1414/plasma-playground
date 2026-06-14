@@ -186,7 +186,7 @@ def burn_dshaped_cross_section():
     out = anim.animate_poloidal_field(
         R, Z, field_fr, times, path=f"{OUT}/burn_dshaped_cross_section.gif",
         mask=inside, clabel="T [keV]", cmap="inferno", vmax=float(field_fr.max()),
-        title="Burn on the real D-shaped equilibrium", fps=20, dpi=90)
+        title=f"D-shaped burn  ·  κ={kappa:.2f}", fps=20, dpi=110, show_boundary=False)
     print(f"  wrote {out}")
 
 

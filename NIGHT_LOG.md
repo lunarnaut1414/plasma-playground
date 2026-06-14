@@ -39,3 +39,19 @@
   unused `pytest` import that failed ruff — always run `ruff check .` before commit.
   Use `MPLBACKEND=Agg` for headless gif gen.
 - next: **A1 (F1)** — He-ash + dilution + β-limit in exp 09 (`burn_0d_ignition.gif`).
+
+## A1 (F1) — DONE — 1f3053b
+- built: `transport.burn_0d_ash` — three coupled ODEs (fuel-ion n_DT, He-ash n_He,
+  energy W) with fusion-born ash, fuel dilution (n_e = n_DT + 2 n_He), Z_eff-raised
+  bremsstrahlung, and a soft β-limit capping the operating point. Wired into exp 09
+  `run.py` (`--mode ash`) and `gif_gallery.py` (`burn_0d_ignition`).
+- validation: steady T = 14.3 keV (lands in the 10–25 keV burning band ✓), ash
+  balance n_He = τ_He*·R_fus = 0.991 ✓, β pinned at its 3.96% limit, f_He = 5.2%.
+  Full suite **154 passed**, ruff clean.
+- gif: `outputs/burn_0d_ignition.gif` (357K, regen: `python gif_gallery.py burn_0d_ignition`);
+  PNG stills `burn_0d_ash.png`, `burn_0d_ignition.png`.
+- gotcha: a prior session left the A1 code/tests green but UNCOMMITTED with no gif —
+  the priming pass generated the gif and committed it. `gif_gallery.py` writes to
+  repo-root `outputs/` (gitignored), not the experiment's `outputs/`.
+- next: **A2 (F2)** — two-temperature (Te, Ti) + heating mix in exp 09
+  (`burn_1d_two_temperature.gif`).

@@ -120,3 +120,43 @@ def test_v11_loop_center_value_and_sign():
     Bz_center = loop([0.0, 0.0, 0.0])[2]
     assert np.isclose(Bz_center, MU_0 * I / (2.0 * a), rtol=1e-3)
     assert Bz_center > 0
+
+
+# --- helical stellarator: current-free rotational transform (Track E) -------
+def _curl(B, p, h=1e-5):
+    """Numerical curl of a field B at point p (central differences)."""
+    p = np.asarray(p, float)
+    d = np.eye(3) * h
+    j = [(np.asarray(B(p + d[k])) - np.asarray(B(p - d[k]))) / (2 * h) for k in range(3)]
+    # curl = (dBz/dy - dBy/dz, dBx/dz - dBz/dx, dBy/dx - dBx/dy)
+    return np.array([j[1][2] - j[2][1], j[2][0] - j[0][2], j[0][1] - j[1][0]])
+
+
+def test_stellarator_is_current_free():
+    """The vacuum stellarator field is curl-free (no current in the plasma region),
+    and the loop integral of B around the axis vanishes (no net plasma current) — the
+    defining contrast with a current-driven tokamak / screw pinch."""
+    B = fields.helical_stellarator(eps=0.4, l=2, h=1.0)
+    for p in ([0.4, 0.0, 0.0], [0.2, 0.3, 0.5], [-0.3, 0.25, 1.0]):
+        assert np.max(np.abs(_curl(B, p))) < 1e-4          # curl B ~ 0 (current-free)
+    th = np.linspace(0, 2 * np.pi, 240, endpoint=False)
+    r = 0.4
+    circ = sum(np.dot(B([r * np.cos(t), r * np.sin(t), 0.0])[:2],
+                      np.array([-r * np.sin(t), r * np.cos(t)]) * (2 * np.pi / 240))
+               for t in th)
+    assert abs(circ) < 1e-9                                  # no net enclosed current
+
+
+def test_stellarator_has_transform_growing_with_shaping():
+    """A current-free stellarator still twists its field lines (iota != 0), and the
+    transform GROWS with the helical shaping amplitude (the 2nd-order geometric origin,
+    iota ~ eps^2) — twist from geometry, not from current."""
+    from plasmaplay.diagnostics import poincare_section, rotational_transform
+    L = 2 * np.pi
+
+    def iota(eps):
+        pts = poincare_section(fields.helical_stellarator(eps=eps), x0=[0.5, 0.0, 0.0],
+                               period=L, n_crossings=30, ds=0.012)
+        return abs(rotational_transform(pts))
+    assert iota(0.5) > 5e-3                                  # nonzero transform
+    assert iota(0.6) > iota(0.3)                             # grows with shaping

@@ -1,7 +1,9 @@
 # 05 — Stellarator field lines — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** F1 implemented (`run.py`) — screw-pinch field lines, Poincaré, ι(r). F2 next.
+> **Status:** F1 (screw-pinch, ι from current) + F2 (genuine current-free helical
+> vacuum stellarator, `fields.helical_stellarator`, `--mode stellarator`) implemented.
+> F3 (real coil set via simsopt) is next.
 
 ## The question
 
@@ -41,7 +43,19 @@ Poincaré section. Helpful: experiment 04 for the flux-surface concept.
 - **Validation:** measured ι (twist per toroidal turn) matches the F0 model value; surfaces close up on themselves.
 - **Compute:** seconds.
 
-### F2 — Coil filaments (Biot–Savart) + islands
+### F2 — Genuine current-free vacuum stellarator  ✅ implemented (`--mode stellarator`)
+- **Models:** `fields.helical_stellarator` — the straight-stellarator helical vacuum
+  field B = ∇Φ, Φ = B0 z + ε I_l(hr)cos(lθ−hz), **curl-free** so ι comes from geometry
+  with **no net plasma current** (the defining stellarator contrast with the tokamak).
+- **Validation:** ∇×B ≈ 0 and ∮B·dl ≈ 0 around the axis (no current); ι ≠ 0 and grows
+  with the helical amplitude (the 2nd-order ι ∝ ε² origin); nested flux surfaces in the
+  Poincaré section. *(2 tests in `tests/test_fields.py`)*
+- **Deliverable:** `outputs/stellarator_flux_surfaces.gif` — twisty nested flux surfaces
+  (l=2 vacuum field, mapped to a torus) rotating; `..._surfaces.png` (Poincaré + 3-D).
+- **Memo:** `docs/E1_STELLARATOR.md`. (Biot–Savart coil filaments + islands, the original
+  F2 plan, remain a refinement; F3 = a real coil set via simsopt.)
+
+### F2b — Coil filaments (Biot–Savart) + islands  ◻ refinement
 - **Models:** build the field from discrete current-carrying coil filaments via Biot–Savart; trace lines; identify magnetic islands at rational surfaces and the onset of stochasticity.
 - **Assumes:** infinitely thin coils; vacuum field (no plasma response).
 - **Method & tools:** NumPy Biot–Savart (vectorized; numba if slow); Poincaré analysis to find island chains.

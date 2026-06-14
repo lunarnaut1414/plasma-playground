@@ -24,9 +24,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.animation import FuncAnimation, PillowWriter  # noqa: E402
 
 from plasmaplay import (  # noqa: E402
-    animate as anim, cylinder_mhd as cm, equilibrium_metrics as em,
+    animate as anim, cylinder_mhd as cm, equilibrium_metrics as em, fields,
     operating_limits as ol, reduced_mhd as rm, sawtooth as sw, transport as tr,
 )
+from plasmaplay.diagnostics import trace_field_line  # noqa: E402
 from plasmaplay.solvers import grad_shafranov_solve  # noqa: E402
 
 OUT = "outputs"
@@ -440,6 +441,54 @@ def tokamak_3d_discharge():
     print(f"  wrote {out}")
 
 
+def stellarator_flux_surfaces():
+    """E1 (the stellarator): nested flux surfaces of a genuine VACUUM stellarator field
+    — rotational transform from 3-D geometry, NOT plasma current (`fields.
+    helical_stellarator`, curl-free, iota~eps^2). Field lines are traced on several
+    nested surfaces and the straight-stellarator cylinder is mapped onto a torus (its
+    large-aspect limit), so the l=2 cross-section rotates around it — the iconic twisty
+    stellarator. The camera rotates."""
+    l, h, n_periods = 2, 1.0, 6
+    Zt = n_periods * 2 * np.pi
+    B = fields.helical_stellarator(eps=0.5, l=l, h=h)
+    R_t = 3.0                                              # torus major radius (render)
+    surfaces = [(0.18, "#ffd166"), (0.34, "#ef476f"), (0.5, "#118ab2")]
+    n_lines, lines3d = 5, []
+    for r0, color in surfaces:
+        for j in range(n_lines):
+            a0 = 2 * np.pi * j / n_lines
+            path = trace_field_line(B, [r0 * np.cos(a0), r0 * np.sin(a0), 0.0],
+                                    ds=0.02, n_steps=int(Zt / 0.02))
+            phi = 2 * np.pi * path[:, 2] / Zt              # straight cylinder -> torus
+            X = (R_t + path[:, 0]) * np.cos(phi)
+            Y = (R_t + path[:, 0]) * np.sin(phi)
+            Z = path[:, 1]
+            lines3d.append((X, Y, Z, color))
+    print(f"  [stellarator_flux_surfaces] l={l} vacuum field; {len(surfaces)} nested "
+          f"surfaces, {len(lines3d)} field lines over {n_periods} periods (iota from "
+          "geometry, zero net current)")
+
+    fig = plt.figure(figsize=(6, 5.4))
+    ax = fig.add_subplot(111, projection="3d")
+    nframes = 72
+
+    def draw(i):
+        ax.clear(); ax.set_axis_off()
+        for X, Y, Z, color in lines3d:
+            ax.plot(X, Y, Z, color=color, lw=0.7, alpha=0.8)
+        rng = R_t + 0.7
+        ax.set_xlim(-rng, rng); ax.set_ylim(-rng, rng); ax.set_zlim(-rng, rng)
+        ax.set_box_aspect((1, 1, 1))
+        ax.view_init(elev=34, azim=360.0 * i / nframes)
+        ax.set_title("Stellarator vacuum flux surfaces (iota from coils, no current)")
+
+    an = FuncAnimation(fig, draw, frames=nframes, blit=False)
+    out = f"{OUT}/stellarator_flux_surfaces.gif"
+    an.save(out, writer=PillowWriter(fps=16), dpi=90)
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
@@ -450,6 +499,7 @@ GALLERY = {
     "tearing_island_saturation": tearing_island_saturation,
     "tokamak_discharge_full": tokamak_discharge_full,
     "tokamak_3d_discharge": tokamak_3d_discharge,
+    "stellarator_flux_surfaces": stellarator_flux_surfaces,
 }
 
 

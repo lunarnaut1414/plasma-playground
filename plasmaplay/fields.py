@@ -7,6 +7,7 @@ swapped freely into the particle pushers. `position` is an (x, y, z) array.
 from __future__ import annotations
 
 import numpy as np
+from scipy.special import iv, ivp
 
 from .constants import MU_0
 
@@ -107,6 +108,48 @@ def screw_pinch(Bz: float = 1.0, twist: float = 0.2, b_theta=None):
             return np.array([0.0, 0.0, Bz])
         # azimuthal unit vector θ̂ = (-y, x)/r
         return np.array([-Bth * y / r, Bth * x / r, Bz])
+
+    return field
+
+
+def helical_stellarator(B0: float = 1.0, eps: float = 0.4, l: int = 2, h: float = 1.0):
+    """A genuine **vacuum** stellarator field — rotational transform from geometry,
+    NOT from plasma current.
+
+    The defining difference from a tokamak (and from `screw_pinch`, whose twist comes
+    from an axial current): a stellarator's field lines twist purely from the 3-D
+    shape of the *external* coils, with ~zero net plasma current. We model the
+    straight-stellarator limit as a strong axial guide field plus a single helical
+    harmonic, written as the gradient of a harmonic scalar potential (so the field is
+    curl-free — current-free — in the plasma region by construction):
+
+        Phi = B0 z + eps I_l(h r) cos(l theta - h z),    grad^2 Phi = 0,
+
+    giving, in cylindrical (r, theta, z),
+
+        B_r     =  eps h I_l'(h r) cos(l theta - h z)
+        B_theta = -eps (l/r) I_l(h r) sin(l theta - h z)
+        B_z     =  B0 + eps h I_l(h r) sin(l theta - h z)
+
+    A single helicity averages to zero twist at first order; the rotational transform
+    appears at **second order**, iota ∝ eps^2 — the hallmark current-free stellarator
+    transform. `l` is the field periodicity (l=2 is the classic), `h = 2 pi / L` the
+    axial wavenumber. Returns the usual callable ``field(position) -> (3,) ndarray``
+    with position in Cartesian (x, y, z).
+    """
+    def field(position):
+        x, y, z = position
+        r = np.hypot(x, y)
+        if r < 1e-9:
+            return np.array([0.0, 0.0, B0])
+        theta = np.arctan2(y, x)
+        u = l * theta - h * z
+        Il = iv(l, h * r)
+        Ilp = ivp(l, h * r)
+        Br = eps * h * Ilp * np.cos(u)
+        Bth = -eps * (l / r) * Il * np.sin(u)
+        Bz = B0 + eps * h * Il * np.sin(u)
+        return np.array([Br * x / r - Bth * y / r, Br * y / r + Bth * x / r, Bz])
 
     return field
 

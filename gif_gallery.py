@@ -81,11 +81,15 @@ def burn_0d_ignition():
           f"{r['n_He'][-1]/(10.0*R):.3f}")
     # subsample to a sane frame count
     s = slice(0, None, max(1, r["t"].size // 100))
+    nmin, nmax = float(r["n_e"][s].min()), float(r["n_e"][s].max())
+    pad = 0.15 * (nmax - nmin) + 1e18
     out = anim.animate_phase_track(
         r["n_e"][s], r["T"][s], r["t"][s], path=f"{OUT}/burn_0d_ignition.gif",
         color=r["f_He"][s] * 100, xlabel=r"$n_e$ [m$^{-3}$]", ylabel="T [keV]",
         clabel="ash fraction [%]", title="0-D ignition onto the burning point",
-        ylim=(0, 20), fps=20, dpi=90)
+        xlim=(nmin - pad, nmax + pad), ylim=(0, 20),
+        band=(10.0, 20.0), band_label="efficient D-T burn (Lawson window, ~10–20 keV)",
+        fps=20, dpi=110)
     print(f"  wrote {out}")
 
 

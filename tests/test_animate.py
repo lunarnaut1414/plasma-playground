@@ -104,7 +104,8 @@ def test_animate_phase_track_writes_gif(tmp_path):
     T = 2 + 2 * t
     out = anim.animate_phase_track(n, T, t, path=tmp_path / "track.gif",
                                    color=np.linspace(0, 0.1, 20), xlabel="n",
-                                   ylabel="T", clabel="f_He", fps=8, dpi=60)
+                                   ylabel="T", clabel="f_He", band=(10.0, 20.0),
+                                   fps=8, dpi=60)
     assert out.exists() and out.stat().st_size > 0
 
 

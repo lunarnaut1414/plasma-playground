@@ -194,6 +194,23 @@ Verify: regenerated (Ti0 24.2 / Te0 12.8 / Ti/Te 1.89 — unchanged); re-dumped+
 unmistakable. pytest 211 (+1); ruff clean. size 0.77 MB.
 Next: R10 = burn_0d_ignition.
 
+## R10 — burn_0d_ignition — TWEAK — (pending commit)
+Scores (before): A5 B5 C3 D2  ->  (after): A5 B5 C5 D5
+Saw: the (n,T) ignition track is correct (settles to steady T=14.3 keV, beta 4.17% at the
+Troyon limit, f_He 5.2%, ash balance 0.991; head colored by rising ash). BUT it was a tiny
+squiggle cramped in the upper-left corner (axes 0-20 keV x 1.0-1.09e20, track only used
+~14-16 x 1.0-1.045), default white, and NO Lawson/operating context (the prompt's note).
+Defect: C-axis (cramped framing hid the ignition rise; no context) + D-axis (white).
+Did: TWEAK in the SHARED anim.animate_phase_track — added dark=True (house style, light
+tail/head-edge, styled colorbar) and band=/band_label= (a shaded burning-temperature
+window). Gallery now tightens xlim to bracket the track (15% pad) and shades the efficient
+D-T burn / Lawson window (~10-20 keV). The tighter framing REVEALED the full story: a
+near-vertical ignition rise 5->16 keV then settle to 14 at the burning point. dpi 90->110.
+Extended the phase-track test to exercise the band path.
+Verify: regenerated (T 14.3, beta 4.17%, f_He 5.2%, ash 0.991 — unchanged); re-dumped+Read —
+complete ignition story in the labeled burning band. pytest 211; ruff clean. size 0.55 MB.
+Next: R11 = _smoke_diffusion (lowest priority).
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

@@ -150,13 +150,16 @@ def animate_profiles(x, frames, times=None, *, path, labels=None, xlabel="r/a",
 
 def animate_phase_track(x, y, times=None, *, path, color=None, xlabel="", ylabel="",
                         title="", clabel="", cmap="viridis", xlim=None, ylim=None,
-                        fps=20, dpi=90, logx=False):
+                        fps=20, dpi=90, logx=False, dark=True, band=None,
+                        band_label="burning band"):
     """Animate a 2-D trajectory (x[i], y[i]) as a growing, fading tail with a head.
 
     The reusable "phase-space movie" used for burn (n,T) ignition tracks: a point
     sweeps the plane over time, leaving a tail; if `color` (one scalar per frame) is
-    given the head is colored by it with a colorbar (e.g. ash fraction). Returns the
-    saved Path. Pure rendering — the *physics* lives in the (x,y,color) arrays.
+    given the head is colored by it with a colorbar (e.g. ash fraction). `band` is an
+    optional (y_lo, y_hi) shaded horizontal strip — e.g. the efficient-burn (Lawson)
+    temperature window the track ignites INTO. Returns the saved Path. Pure rendering
+    — the *physics* lives in the (x,y,color) arrays.
     """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
@@ -169,17 +172,25 @@ def animate_phase_track(x, y, times=None, *, path, color=None, xlabel="", ylabel
         norm = plt.Normalize(vmin=float(color.min()), vmax=float(color.max()) + 1e-30)
 
     fig, ax = plt.subplots(figsize=(6.5, 5))
+    txt = apply_house_style(fig, [ax], dark=dark)
     ax.set(xlim=xlim, ylim=ylim, xlabel=xlabel, ylabel=ylabel)
     if logx:
         ax.set_xscale("log")
-    (tail,) = ax.plot([], [], color="0.6", lw=1.2, alpha=0.8)
-    head = ax.scatter([x[0]], [y[0]], s=80, zorder=3,
+    if band is not None:
+        ax.axhspan(band[0], band[1], color="#ffd166" if dark else "0.85",
+                   alpha=0.12 if dark else 0.6, zorder=0)
+        ax.text(xlim[0] + 0.03 * (xlim[1] - xlim[0]), band[1], band_label,
+                color="#ffd166" if dark else "0.4", fontsize=8, va="top")
+    (tail,) = ax.plot([], [], color="#8a8f99", lw=1.4, alpha=0.9)
+    head = ax.scatter([x[0]], [y[0]], s=90, zorder=3,
                       c=([color[0]] if color is not None else "crimson"),
-                      cmap=cmap, norm=norm, edgecolors="k", linewidths=0.6)
+                      cmap=cmap, norm=norm, edgecolors=txt, linewidths=0.7)
     if color is not None:
-        fig.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=norm), ax=ax, label=clabel,
-                     shrink=0.85)
-    ttl = ax.set_title(title)
+        cb = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=norm), ax=ax,
+                          label=clabel, shrink=0.85)
+        cb.ax.yaxis.label.set_color(txt); cb.ax.tick_params(colors=txt)
+        cb.outline.set_edgecolor(txt)
+    ttl = ax.set_title(title, color=txt)
 
     def draw(i):
         tail.set_data(x[: i + 1], y[: i + 1])

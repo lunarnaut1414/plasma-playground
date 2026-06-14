@@ -168,6 +168,23 @@ def test_animate_operating_space_writes_gif(tmp_path):
     assert out.exists() and Image.open(out).n_frames == 8
 
 
+def test_torus_field_lines_on_surface():
+    """Circular-tube field lines lie on a torus of radius a*rscale and there are n_lines."""
+    R0, a, rscale = 3.0, 1.0, 1.1
+    lines = anim.torus_field_lines(R0, a, iota=0.5, n_lines=3, n_tor=2.0, rscale=rscale)
+    assert len(lines) == 3
+    for X, Y, Z in lines:
+        resid = (np.sqrt(X**2 + Y**2) - R0) ** 2 + Z**2 - (a * rscale) ** 2
+        assert np.max(np.abs(resid)) < 1e-9
+
+
+def test_poloidal_bp_quiver_is_circulating():
+    """B_p arrows are perpendicular to the radius (purely circulating, no radial part)."""
+    X, Y, U, V = anim.poloidal_bp_quiver(rings=(0.5,), n_ang=12)
+    radial = X * U + Y * V                      # dot of position with arrow
+    assert np.allclose(radial, 0.0, atol=1e-12)
+
+
 def test_animate_stellarator_3d_writes_gif(tmp_path):
     """The two-panel stellarator burn (twisty torus + l=2 elliptical bullseye) animates a
     full profile and writes a multi-frame gif."""

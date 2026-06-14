@@ -409,9 +409,48 @@ def animate_torus_nested(rho_levels, T_rt, times=None, *, path, R0=3.0, a=1.0,
     return out
 
 
+def torus_field_lines(R0, a, iota, n_lines=3, *, shape=None, n_tor=3.0, npts=600,
+                      rscale=1.13, phase0=0.0):
+    """Helical magnetic field lines wrapping a torus surface (the rotational transform).
+
+    Returns a list of (X, Y, Z) curves. Each advances poloidally by `iota` radians per
+    radian of toroidal angle u (ι = 1/q is the field-line twist). `shape(v, u)` is an
+    optional radial multiplier for a shaped (e.g. l=2 stellarator) tube; default is a
+    circular tube of radius `a`. `n_tor` toroidal turns are traced (more -> a denser
+    visible helix); `rscale` lifts the line just off the surface so it stays visible.
+    """
+    u = np.linspace(0.0, 2.0 * np.pi * n_tor, npts)
+    lines = []
+    for k in range(n_lines):
+        v = phase0 + 2.0 * np.pi * k / n_lines + iota * u
+        rr = a * rscale * (shape(v, u) if shape is not None else np.ones_like(u))
+        rl = R0 + rr * np.cos(v)
+        lines.append((rl * np.cos(u), rl * np.sin(u), rr * np.sin(v)))
+    return lines
+
+
+def poloidal_bp_quiver(rings=(0.42, 0.78), n_ang=13, scale=0.17, shape_r=None):
+    """Arrows for the poloidal field B_p circulating around the magnetic axis.
+
+    Returns (X, Y, U, V). Arrows sit on the flux surfaces at normalized radii `rings`,
+    point in the circulating (poloidal) direction, and grow with minor radius (B_p
+    increases outward). `shape_r(v)` optionally scales the surface radius at poloidal
+    angle v for a shaped cross-section.
+    """
+    xs, ys, us, vs = [], [], [], []
+    for s in rings:
+        for v in np.linspace(0.0, 2.0 * np.pi, n_ang, endpoint=False):
+            rb = shape_r(v) if shape_r is not None else 1.0
+            r = s * rb
+            xs.append(r * np.cos(v)); ys.append(r * np.sin(v))
+            us.append(-scale * s * np.sin(v)); vs.append(scale * s * np.cos(v))
+    return np.array(xs), np.array(ys), np.array(us), np.array(vs)
+
+
 def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
                          cmap="inferno", title="", fps=16, dpi=120, vmin=0.0, vmax=None,
-                         crashes=None, dark=True):
+                         crashes=None, dark=True, field_iota=1.0 / 2.2, n_field=3,
+                         field_tor=3.0, show_bp=True):
     """Two-panel 3-D discharge: a glowing rotating torus beside its poloidal bullseye.
 
     `rho` is the normalized minor-radius grid (0..1); `T_rt` is (n_t, n_rho), the
@@ -439,6 +478,9 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
     Rg, Ag = np.meshgrid(rho, ang, indexing="ij")
     Xc, Yc = Rg * np.cos(Ag), Rg * np.sin(Ag)
     levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
+    flines = (torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor)
+              if field_iota else [])
+    bpq = poloidal_bp_quiver() if show_bp else None
 
     fig = plt.figure(figsize=(10.4, 5.0))
     axL = fig.add_subplot(1, 2, 1, projection="3d")
@@ -460,11 +502,14 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
             axL.patch.set_alpha(0.0)                   # cleared each frame -> re-hide
         axL.plot_surface(X, Y, Z, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
                          linewidth=0, antialiased=True, shade=True)
-        rng = R0 + a
+        for fx, fy, fz in flines:                       # helical B field lines (ι = 1/q)
+            axL.plot(fx, fy, fz, color="#67e8f9", lw=1.7, alpha=0.95)
+        rng = R0 + a * 1.18
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        axL.set_title("3-D torus (surface = core T)", color=txt, fontsize=10, pad=0)
+        ftxt = "  ·  cyan = B field lines (ι=1/q)" if flines else ""
+        axL.set_title(f"3-D torus (surface = core T){ftxt}", color=txt, fontsize=9, pad=0)
         if crashes is not None and crashes[i] > 0:     # flash over the torus panel
             axL.text2D(0.5, 0.04, "⚡ sawtooth crash", transform=axL.transAxes,
                        color="#ffd166", fontsize=13, fontweight="bold", ha="center")
@@ -475,8 +520,12 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
         Tc = np.broadcast_to(T_rt[i][:, None], Rg.shape)
         axR.contourf(Xc, Yc, Tc, levels=levels, cmap=cmap, norm=norm, extend="max")
         axR.plot(np.cos(ang), np.sin(ang), color=txt, lw=0.8, alpha=0.5)
+        if bpq is not None:                             # poloidal field B_p (circulating)
+            axR.quiver(bpq[0], bpq[1], bpq[2], bpq[3], color="#67e8f9", alpha=0.8,
+                       width=0.006, scale=2.2, zorder=4)
         axR.set_xlim(-1.12, 1.12); axR.set_ylim(-1.18, 1.12)
-        axR.set_title("poloidal cross-section  T(ρ)", color=txt, fontsize=10)
+        bptxt = "   ·  arrows = $B_p$" if bpq is not None else ""
+        axR.set_title(f"poloidal cross-section  T(ρ){bptxt}", color=txt, fontsize=10)
         parts = []
         if times is not None:
             parts.append(f"t = {times[i]:5.1f} s")
@@ -496,7 +545,8 @@ def animate_discharge_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, n_u=80, 
 
 def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=0.30,
                            n_periods=5, n_u=150, n_v=46, n_s=46, cmap="inferno",
-                           title="", fps=16, dpi=120, vmin=0.0, vmax=None, dark=True):
+                           title="", fps=16, dpi=120, vmin=0.0, vmax=None, dark=True,
+                           field_iota=0.45, n_field=3, field_tor=3.0, show_bp=True):
     """Two-panel STELLARATOR burn: a glowing twisty torus beside its elliptical bullseye.
 
     The stellarator analog of `animate_discharge_3d`. `rho` is the normalized minor-radius
@@ -536,6 +586,13 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
     rb = a * (1.0 - delta * np.cos(2.0 * vb))              # plasma boundary ellipse
     levels = np.linspace(vmin, max(vmax, vmin + 1e-9), 41)
     lim = a * (1.0 + delta) * 1.14
+    # field lines wrap the SHAPED surface (twist ι from geometry, not current)
+    flines = (torus_field_lines(R0, a, field_iota, n_field, n_tor=field_tor,
+                                shape=lambda vv_, uu_: 1.0 + delta * np.cos(
+                                    2.0 * vv_ - n_periods * uu_))
+              if field_iota else [])
+    bpq = poloidal_bp_quiver(shape_r=lambda vq: 1.0 - delta * np.cos(2.0 * vq)) \
+        if show_bp else None
 
     fig = plt.figure(figsize=(10.4, 5.0))
     axL = fig.add_subplot(1, 2, 1, projection="3d")
@@ -548,7 +605,7 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
     if dark:
         for axis in (axL.xaxis, axL.yaxis, axL.zaxis):
             axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
-    rng = R0 + a * (1.0 + delta)
+    rng = R0 + a * (1.0 + delta) * 1.18
 
     def draw(i):
         axL.clear(); axL.set_axis_off()
@@ -556,10 +613,14 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
             axL.patch.set_alpha(0.0)
         axL.plot_surface(Xs, Ys, Zs, color=cmap_obj(norm(core[i])), rstride=2, cstride=2,
                          linewidth=0, antialiased=True, shade=True)
+        for fx, fy, fz in flines:                       # helical B field lines (geometry)
+            axL.plot(fx, fy, fz, color="#67e8f9", lw=1.7, alpha=0.95)
         axL.set_xlim(-rng, rng); axL.set_ylim(-rng, rng); axL.set_zlim(-rng, rng)
         axL.set_box_aspect((1, 1, 1))
         axL.view_init(elev=34, azim=360.0 * i / max(n_t, 1))
-        axL.set_title("3-D stellarator (surface = core T)", color=txt, fontsize=10, pad=0)
+        ftxt = "  ·  cyan = B field lines (ι from coils)" if flines else ""
+        axL.set_title(f"3-D stellarator (surface = core T){ftxt}", color=txt,
+                      fontsize=9, pad=0)
         axL.text2D(0.5, 0.04, "steady · no sawteeth", transform=axL.transAxes,
                    color="#34d399", fontsize=11, fontweight="bold", ha="center")
 
@@ -569,8 +630,12 @@ def animate_stellarator_3d(rho, T_rt, times=None, *, path, R0=3.0, a=1.0, delta=
         Tc = np.broadcast_to(np.interp(s, rho, T_rt[i])[:, None], Sg.shape)
         axR.contourf(Xc, Yc, Tc, levels=levels, cmap=cmap, norm=norm, extend="max")
         axR.plot(rb * np.cos(vb), rb * np.sin(vb), color=txt, lw=0.9, alpha=0.5)
+        if bpq is not None:                             # poloidal field B_p (circulating)
+            axR.quiver(bpq[0], bpq[1], bpq[2], bpq[3], color="#67e8f9", alpha=0.8,
+                       width=0.006, scale=2.2, zorder=4)
         axR.set_xlim(-lim, lim); axR.set_ylim(-lim * 1.05, lim)
-        axR.set_title("poloidal cross-section  T(ρ)  ·  l=2 shaped", color=txt, fontsize=10)
+        bptxt = "  ·  arrows = $B_p$" if bpq is not None else ""
+        axR.set_title(f"poloidal cross-section  T(ρ){bptxt}", color=txt, fontsize=9)
         parts = []
         if times is not None:
             parts.append(f"t = {times[i]:5.1f} s")

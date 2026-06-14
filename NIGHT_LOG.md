@@ -132,3 +132,29 @@
   — B1 cylindrical linear MHD (internal kink / tearing on a real q(r), reuse
   `tearing.py`), deliverable `kink_eigenmode.gif`. Recommend **Track B1** (new physics,
   higher value than A3b; opens the MHD half toward the Track-C coupling).
+
+## B1 (MHD track) — DONE — 4f1e6e5
+- built: **new experiment 10** (`experiments/10_tokamak_stability/`) + new kernel
+  `plasmaplay/cylinder_mhd.py` — the straight-tokamak (periodic cylinder) linear
+  stability. `screw_pinch_q` (q(r) from (1-r²)^ν current; q(0)=q0, q(a)=(ν+1)q0),
+  `rational_surface` (q=m/n by bisection), `delta_prime_cylinder` (outer Newcomb
+  eqn → tearing index Δ′), `internal_kink_unstable`+`internal_kink_xi` (m=1 q(0)<1
+  sawtooth trigger + top-hat eigenfunction), `fkr_growth_rate` (FKR S^-3/5, reused
+  from slab/T4). Registered `tearing` + `cylinder_mhd` in `__init__.py`.
+- validation: q(0)=q0, q(a)=(ν+1)q0; **m=1 kink unstable iff q(0)<1** (0.7/0.85/0.95
+  unstable, 1.05/1.3 stable); **sign of Δ′ predicts tearing stability** + Δ′ falls
+  with m (gap-robust); **γ∝S^-3/5** (10^-0.6/decade). **191 passed** (14 new in
+  `tests/test_cylinder_mhd.py`), ruff clean.
+- gif: `outputs/kink_eigenmode.gif` (715K, ξ_r(r)+q(r) panel + the m=1 core-shift
+  crescent growing); PNG `kink_eigenmode.png`. Memo `docs/B1_CYLINDER_MHD.md`.
+- gotcha: the **absolute Δ′ is resolution-dependent** near the singular layer (the
+  outer ψ has a log term that only cancels as gap→0; values grow ~5.8→8.2 as gap
+  4e-3→1e-3) — so tests assert only the **sign and m-ordering** (the charter's gate),
+  NOT an absolute Δ′. R/B_θ scale cancels in the Newcomb drive term → stability
+  depends only on the q-profile. solve_ivp t_eval must be sorted in the integration
+  direction (decreasing when integrating inward from the wall).
+- next: **B2** — nonlinear 2-D reduced MHD (`plasmaplay/reduced_mhd.py`): evolve ψ &
+  vorticity in (r,θ), watch a tearing island grow and SATURATE (Rutherford dW/dt∝Δ′(W));
+  deliverable `tearing_island_saturation.gif`. Then B3 sawtooth cycle, then Track C
+  (couple a sawtooth/tearing event into the exp-09 burn). NOTE: B2 is a bigger rung
+  (2-D nonlinear PDE) — may need a validated partial across two wakes.

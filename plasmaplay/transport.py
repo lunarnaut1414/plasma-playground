@@ -263,7 +263,7 @@ def z_eff_with_ash(n_dt, n_he):
 
 def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
                 fuel_rate=0.0, beta_limit=None, beta_stiffness=80.0,
-                t_end=30.0, dt=1e-3):
+                tau_factor=None, t_end=30.0, dt=1e-3):
     """0-D burn with He ash, fuel dilution + burnup, and a soft beta-limit (F1).
 
     Three coupled ODEs for the fuel-ion density n_DT, the helium-ash density n_He,
@@ -291,7 +291,11 @@ def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
 
     Parameters mirror `burn_0d`, plus: `B` on-axis field [T] (needed for beta),
     `tau_he` ash particle-confinement time [s] (default 5*tau_E), `beta_limit`
-    fraction (None disables it), `beta_stiffness` the soft-limit exponent.
+    fraction (None disables it), `beta_stiffness` the soft-limit exponent, and
+    `tau_factor` an optional state-dependent confinement multiplier
+    ``tau_factor(t, n_e, T_keV, p_heat_density) -> factor`` applied on top of the
+    beta-limit (the hook used for the L->H transition and the Greenwald density-limit
+    collapse in `operating_limits`).
 
     Returns a dict of arrays: t, T (keV), n_DT, n_He, n_e, f_He (= n_He/n_e), z_eff,
     beta, tau_E_eff, p_alpha, p_fusion, p_brem, p_aux, Q (= P_fus/P_aux), triple.
@@ -304,12 +308,17 @@ def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
 
     tauE_f, paux_f, fuel_f = as_f(tau_E), as_f(p_aux), as_f(fuel_rate)
 
-    def tauE_eff(t, w):
+    def tauE_eff(t, n_dt, n_he, w):
         tE = tauE_f(t)
-        if beta_limit is None:
-            return tE
-        excess = max(0.0, beta_thermal(w, B) / beta_limit - 1.0)
-        return tE / (1.0 + beta_stiffness * excess ** 2)
+        if beta_limit is not None:
+            excess = max(0.0, beta_thermal(w, B) / beta_limit - 1.0)
+            tE = tE / (1.0 + beta_stiffness * excess ** 2)
+        if tau_factor is not None:
+            T = _T_of_ash(n_dt, n_he, w)
+            n_e = n_dt + 2.0 * n_he
+            p_heat = paux_f(t) + reaction_rate_dt(n_dt, T) * E_ALPHA_MEV * _MEV_J
+            tE = tE * float(tau_factor(t, n_e, T, p_heat))
+        return tE
 
     def deriv(t, n_dt, n_he, w):
         T = _T_of_ash(n_dt, n_he, w)
@@ -318,7 +327,7 @@ def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
         z = float(z_eff_with_ash(n_dt, n_he))
         p_a = R * E_ALPHA_MEV * _MEV_J
         p_b = bremsstrahlung_density(n_e, T, z)
-        dw = paux_f(t) + p_a - p_b - w / tauE_eff(t, w)
+        dw = paux_f(t) + p_a - p_b - w / tauE_eff(t, n_dt, n_he, w)
         d_ndt = fuel_f(t) - n_dt / tau_p - 2.0 * R
         d_nhe = R - n_he / tau_he
         return d_ndt, d_nhe, dw
@@ -350,7 +359,8 @@ def burn_0d_ash(n_dt0, T0, *, tau_E, p_aux, B, tau_p=None, tau_he=None,
     p_brem = bremsstrahlung_density(n_e, T, z)
     p_aux_arr = np.array([paux_f(tk) for tk in t])
     beta = beta_thermal(W, B)
-    tauE_arr = np.array([tauE_eff(tk, wk) for tk, wk in zip(t, W)])
+    tauE_arr = np.array([tauE_eff(tk, a, b, wk)
+                         for tk, a, b, wk in zip(t, NDT, NHE, W)])
     with np.errstate(divide="ignore", invalid="ignore"):
         Q = np.where(p_aux_arr > 0, p_fus / p_aux_arr, np.inf)
     return {
@@ -400,7 +410,8 @@ class Transport1D:
     """
 
     def __init__(self, a, n_grid=129, *, chi=1.0, D=0.4, z_eff=1.0,
-                 T_edge=0.1, n_edge=2e19):
+                 T_edge=0.1, n_edge=2e19, B=None, beta_limit=None,
+                 beta_stiffness=40.0):
         self.a = float(a)
         self.rho = np.linspace(0.0, 1.0, n_grid)
         self.drho = self.rho[1] - self.rho[0]
@@ -409,10 +420,28 @@ class Transport1D:
         self.z_eff = z_eff
         self.T_edge = T_edge
         self.n_edge = n_edge
+        # optional soft beta-limit: above the Troyon beta the heat diffusivity is
+        # raised (confinement degraded) so the volume-averaged pressure cannot run
+        # past the limit — the 1-D analogue of burn_0d_ash's soft cap. None disables.
+        self.B = B
+        self.beta_limit = beta_limit
+        self.beta_stiffness = beta_stiffness
         self.t = 0.0
         # state — set by set_state()
         self.T = np.full(n_grid, T_edge)
         self.n = np.full(n_grid, n_edge)
+
+    def _chi_beta_factor(self):
+        """Confinement-degradation multiplier on chi from the soft beta-limit.
+
+        1 below the limit; grows as 1 + stiffness*(beta/beta_limit - 1)^2 above it,
+        where beta is the volume-averaged thermal beta. Raising chi sheds energy and
+        pins beta near beta_limit (instead of the burn running away to ~80 keV)."""
+        if self.beta_limit is None or self.B is None:
+            return 1.0
+        W_avg = self._vol_avg(3.0 * self.n * self.T * 1e3 * E)
+        excess = max(0.0, float(beta_thermal(W_avg, self.B)) / self.beta_limit - 1.0)
+        return 1.0 + self.beta_stiffness * excess ** 2
 
     def set_state(self, T, n):
         """Set initial profiles (arrays over rho, or scalars)."""
@@ -491,8 +520,9 @@ class Transport1D:
         n_new = np.maximum(n_new, 1e16)
 
         # --- energy: implicit conduction of T, then explicit power sources ---
-        # diffuse temperature (heat diffusivity chi acts on T directly here)
-        T_diff = self._diffuse(T, self.chi, dt, self.T_edge)
+        # diffuse temperature (heat diffusivity chi acts on T directly here); the
+        # soft beta-limit raises chi once the volume-averaged beta exceeds the limit
+        T_diff = self._diffuse(T, self.chi * self._chi_beta_factor(), dt, self.T_edge)
         # power balance updates the energy density at fixed (new) density
         p_alpha = fusion_power_density(n, T, "alpha")
         p_brem = bremsstrahlung_density(n, T, self.z_eff)

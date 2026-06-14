@@ -64,7 +64,7 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 | 06 | Ideal MHD basics ✅ | continuity/momentum/induction, Alfvén waves | [plan](experiments/06_ideal_mhd/PLAN.md) | numpy / scipy |
 | 07 | MHD accelerator (space drive) ✅ | J×B body force, magnetic nozzle concept | [plan](experiments/07_mhd_space_drive/PLAN.md) | numpy / scipy |
 | 08 | Plasma waves & dispersion ✅ | cold/warm plasma dispersion relations | [plan](experiments/08_plasma_waves_dispersion/PLAN.md) | [PlasmaPy](https://docs.plasmapy.org) |
-| 09 | Burning plasma (transport) ✅ | ignition → steady burn → fuel injection; He-ash & β-limit; two-temperature Te/Ti; transport on the real D-shaped equilibrium | [plan](experiments/09_burning_plasma/PLAN.md) | numpy (ASTRA-like) |
+| 09 | Burning plasma (transport) ✅ | ignition → steady burn → fuel injection; He-ash & β-limit; two-temperature Te/Ti; real D-shaped equilibrium; operating modes (L/H/disruption) | [plan](experiments/09_burning_plasma/PLAN.md) | numpy (ASTRA-like) |
 
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 

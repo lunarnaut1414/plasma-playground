@@ -17,10 +17,18 @@ import sys
 
 import numpy as np
 
-from plasmaplay import animate as anim, equilibrium_metrics as em, transport as tr
+from plasmaplay import (
+    animate as anim, equilibrium_metrics as em, operating_limits as ol, transport as tr,
+)
 from plasmaplay.solvers import grad_shafranov_solve
 
 OUT = "outputs"
+
+# A small ITER-like toy device, shared by the operating-mode scenarios.
+_R0, _A, _B, _IP, _KAPPA = 3.0, 1.0, 5.3, 7.0, 1.5
+_S = 4 * np.pi ** 2 * _R0 * _A * np.sqrt((1 + _KAPPA ** 2) / 2)
+_VOL = 2 * np.pi ** 2 * _R0 * _A ** 2
+_N_G = ol.greenwald_density(_IP, _A)
 
 
 def smoke_diffusion():
@@ -174,11 +182,61 @@ def burn_dshaped_cross_section():
     print(f"  wrote {out}")
 
 
+def _modes_tau_factor(n0):
+    """Confinement multiplier for this device: L->H bifurcation x Greenwald collapse."""
+    p_lh = ol.lh_power_threshold(n0 / 1e20, _B, _S)
+
+    def factor(t, n_e, T, p_heat_density):
+        return (ol.confinement_factor_lh(p_heat_density * _VOL / 1e6, p_lh)
+                * ol.confinement_factor_greenwald(n_e, _N_G))
+    return factor
+
+
+def _modes_scenario(n0, p_aux, tau_E, fuel_rate, t_end=45.0):
+    return tr.burn_0d_ash(n0, 3.0, tau_E=tau_E, p_aux=p_aux, B=_B, tau_p=6.0,
+                          tau_he=10.0, fuel_rate=fuel_rate, beta_limit=0.04,
+                          tau_factor=_modes_tau_factor(n0), t_end=t_end, dt=1e-3)
+
+
+def operating_modes():
+    """A4 (F3.5): the tokamak operating WINDOW, not one happy path. Three 0-D burns
+    sweep an (n_e, T) operating diagram: an L-mode (heating below the L->H threshold,
+    stays cool), an H-mode (above threshold, ignites into the beta-limited burning
+    band), and a disruption (over-fuelled past the Greenwald limit -> the confinement
+    collapses and the burn dies). Validates n_G and the L->H power threshold."""
+    p_lh = ol.lh_power_threshold(0.7, _B, _S)
+    print(f"  [operating_modes] n_G = {_N_G:.2e} m^-3, L->H threshold P_LH ~ {p_lh:.0f} MW")
+    lmode = _modes_scenario(5e19, lambda t: 1.2e5, 1.0, 5e19 / 6)
+    hmode = _modes_scenario(7e19, lambda t: 3e5, 1.8, 7e19 / 6)
+    disrupt = _modes_scenario(7e19, lambda t: 3e5, 1.8,
+                              lambda t: 7e19 / 6 if t < 22 else 4.5e19)
+    for name, r in (("L-mode", lmode), ("H-mode", hmode), ("disruption", disrupt)):
+        print(f"    {name:11s}: end T0 = {r['T'][-1]:5.1f} keV, "
+              f"n_e/n_G = {r['n_e'][-1]/_N_G:.2f}, beta = {r['beta'][-1]*100:.1f}%")
+
+    sl = slice(0, None, max(1, lmode["t"].size // 110))
+    tracks = [
+        {"x": lmode["n_e"][sl], "y": lmode["T"][sl], "label": "L-mode (sub-threshold)",
+         "color": "tab:blue"},
+        {"x": hmode["n_e"][sl], "y": hmode["T"][sl], "label": "H-mode (burning)",
+         "color": "tab:red"},
+        {"x": disrupt["n_e"][sl], "y": disrupt["T"][sl],
+         "label": "over-fuel -> disruption", "color": "0.35"},
+    ]
+    out = anim.animate_operating_space(
+        tracks, lmode["t"][sl], path=f"{OUT}/operating_modes.gif",
+        xlabel=r"$n_e$ [m$^{-3}$]", ylabel="T [keV]", title="Tokamak operating modes",
+        vlines=[(_N_G, r"Greenwald limit $n_G$")], band=(10.0, 25.0),
+        xlim=(0, 1.25 * _N_G), ylim=(0, 30), fps=20, dpi=90)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
     "burn_1d_two_temperature": burn_1d_two_temperature,
     "burn_dshaped_cross_section": burn_dshaped_cross_section,
+    "operating_modes": operating_modes,
 }
 
 

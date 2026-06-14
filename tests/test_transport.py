@@ -275,3 +275,26 @@ def test_two_temp_1d_ion_heating_gives_hotter_ions():
     d = sim.diagnostics()
     assert d["Ti0"] > d["Te0"]                    # ions hotter on axis
     assert d["Ti0"] / d["Te0"] > 1.05             # a genuine separation
+
+
+# --- 1-D soft beta-limit ---------------------------------------------------
+def _run_1d_burn(beta_limit):
+    sim = tr.Transport1D(a=1.0, n_grid=97, chi=0.12, D=0.04, n_edge=2e19,
+                         B=5.3, beta_limit=beta_limit, beta_stiffness=40.0)
+    sim.set_state(T=2.0, n=1e20)
+    for k in range(4000):
+        paux = 6e5 if k * 4e-3 < 4.0 else 0.0
+        sim.step(4e-3, p_aux_total=paux, fuel_total=1e20 / 6,
+                 fuel_profile=tr.gaussian_deposition(sim.rho, 0.0, 0.4))
+    W = sim._vol_avg(3.0 * sim.n * sim.T * 1e3 * 1.602176634e-19)
+    return sim.T[0], float(tr.beta_thermal(W, 5.3))
+
+
+def test_1d_beta_limit_pins_pressure():
+    """Without a beta-limit the 1-D burn runs away hot (<beta> ~ 11%); the soft
+    1-D beta-limit pins the volume-averaged beta near 4% and lands a cooler core."""
+    T_free, beta_free = _run_1d_burn(None)
+    T_lim, beta_lim = _run_1d_burn(0.04)
+    assert beta_free > 0.08                       # limit-free burn over-pressurizes
+    assert beta_lim == pytest.approx(0.04, abs=0.01)   # pinned near the Troyon limit
+    assert T_lim < T_free                          # and sits cooler than the runaway

@@ -1,12 +1,12 @@
 # 09 — Burning plasma (transport) — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** F0 + F1 + F2 + F2.5 + F3 implemented (`run.py`), kernels
-> `plasmaplay/transport.py` + `plasmaplay/equilibrium_metrics.py`, tests
-> `tests/test_transport.py` (29) + `tests/test_equilibrium_metrics.py` (7) = 36
-> passing. F3 couples transport to the real equilibrium geometry (fixed
-> equilibrium); the self-consistent Picard re-solve (A3b) and the β-limit / L-H
-> operating modes (F3.5) are the remaining rungs.
+> **Status:** F0 + F1 + F2 + F2.5 + F3 + F3.5 implemented (`run.py`), kernels
+> `plasmaplay/transport.py` + `equilibrium_metrics.py` + `operating_limits.py`,
+> tests `test_transport.py` (30) + `test_equilibrium_metrics.py` (7) +
+> `test_operating_limits.py` (8) = 45 passing. The remaining rungs are the
+> self-consistent Picard equilibrium re-solve (A3b), a predictive-χ closure (F4),
+> and the Track-B/C MHD coupling (sawtooth/tearing events during the burn).
 
 ## The question
 
@@ -130,6 +130,25 @@ finite differences. A flux-surface-averaged radial coordinate ρ = r/a.
   for a realistic ~28 keV burning point rather than fit to IPB98 (the model has no
   β-limit yet — that is F3.5). The IPB98 helper is validated independently vs ITER.
 - **Compute:** seconds (one GS solve + the 1-D burn).
+
+### F3.5 — Operational limits & confinement modes  ✅ implemented (`--mode modes`)
+- **Models:** `plasmaplay/operating_limits.py` — the **Greenwald density limit**
+  n_G = Ip/(πa²), the **Martin-2008 L→H power threshold** P_LH, and two confinement
+  *multipliers* on τ_E: a smooth **L→H bifurcation** (confinement ≈ doubles above the
+  power threshold) and a **density-limit collapse** (confinement falls toward a floor
+  as n → n_G). Driven through `burn_0d_ash`'s new `tau_factor` state hook. Also adds
+  a **soft β-limit to the 1-D `Transport1D`** (raises χ above the Troyon β), the
+  analogue of the 0-D cap — so the 1-D burn no longer runs away.
+- **You'll learn:** the operating *window* — why machines live in H-mode, why the
+  density is capped, and that over-fuelling past n_G is a (reversible-until-it-isn't)
+  disruption, not a knob you can push freely.
+- **Validation:** n_G = 1.19e20 for the ITER baseline; P_LH ≈ 52 MW at the ITER point
+  (published ~50 MW); H-mode runs >2× hotter than L-mode across the L→H threshold; the
+  over-fuel collapse past n_G is **reversible** (back off the fuelling → the burn
+  recovers); the 1-D β-limit pins ⟨β⟩ ≈ 4%. *(9 tests)*
+- **Deliverable:** `outputs/operating_modes.gif` — L-mode, H-mode and a Greenwald
+  disruption sweeping the (n, T) operating space; `operating_modes.png` still.
+- **Compute:** seconds (three 0-D burns).
 
 ### F4 — Predictive transport / real code  ◻ not yet
 - **Models:** replace prescribed χ, D with a transport model (a critical-gradient /

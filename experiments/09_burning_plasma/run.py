@@ -29,12 +29,17 @@ Two modes:
           averaged metrics V'(rho), <|grad rho|^2> from a shaped Solov'ev solve,
           with T mapped back onto the actual D-shaped flux surfaces.
 
+  modes   (F3.5) operational limits & confinement modes: the Greenwald density
+          limit, the L->H power threshold, and three 0-D burns (L-mode, H-mode, and
+          a reversible over-fuel density-limit disruption).
+
 Run:
     python run.py                 # 1-D burn arc (three phases)
     python run.py --mode zerod    # 0-D ignition / Lawson demo
     python run.py --mode ash      # 0-D ash + dilution + beta-limit
     python run.py --mode twotemp  # 1-D two-temperature (Te, Ti) burn
     python run.py --mode dshaped  # 1-D transport on the real D-shaped equilibrium
+    python run.py --mode modes    # operating limits: L-mode / H-mode / disruption
     python run.py --save          # write figures to ./outputs/
 """
 
@@ -45,7 +50,9 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plasmaplay import equilibrium_metrics as em, plotting, transport as tr
+from plasmaplay import (
+    equilibrium_metrics as em, operating_limits as ol, plotting, transport as tr,
+)
 from plasmaplay.solvers import grad_shafranov_solve
 
 # Geometry of the toy device (large-aspect-ratio circular torus).
@@ -244,6 +251,79 @@ def _plot_twotemp(sim, relax, save):
     ax[1].legend()
     fig.tight_layout()
     _finish(fig, save, "burn_1d_two_temperature.png")
+
+
+# ---------------------------------------------------------------------------
+# F3.5 — operational limits & confinement modes (L-mode, H-mode, disruption)
+# ---------------------------------------------------------------------------
+_S_PLASMA = 4.0 * np.pi**2 * R0 * A_MINOR * np.sqrt((1 + 1.5**2) / 2)   # plasma area
+
+
+def _modes_factor(n0):
+    p_lh = ol.lh_power_threshold(n0 / 1e20, B_FIELD, _S_PLASMA)
+    n_G = ol.greenwald_density(IP_MA, A_MINOR)
+
+    def factor(t, n_e, T, p_heat_density):
+        return (ol.confinement_factor_lh(p_heat_density * PLASMA_VOLUME / 1e6, p_lh)
+                * ol.confinement_factor_greenwald(n_e, n_G))
+    return factor
+
+
+def _modes_burn(n0, p_aux, tau_E, fuel_rate, t_end=45.0):
+    return tr.burn_0d_ash(n0, 3.0, tau_E=tau_E, p_aux=p_aux, B=B_FIELD, tau_p=6.0,
+                          tau_he=10.0, fuel_rate=fuel_rate, beta_limit=0.04,
+                          tau_factor=_modes_factor(n0), t_end=t_end, dt=1e-3)
+
+
+def run_modes(save=False):
+    print("\n--- Operational limits & modes (F3.5): L-mode / H-mode / disruption ---")
+    n_G = ol.greenwald_density(IP_MA, A_MINOR)
+    p_lh = ol.lh_power_threshold(0.7, B_FIELD, _S_PLASMA)
+    iter_plh = ol.lh_power_threshold(0.5, 5.3, 680.0)
+    print(f"  Greenwald density limit n_G = Ip/(pi a^2) = {n_G:.2e} m^-3")
+    print(f"  L->H power threshold (Martin 2008): device ~ {p_lh:.0f} MW, "
+          f"ITER ~ {iter_plh:.0f} MW (published ~50 MW)")
+
+    lmode = _modes_burn(5e19, lambda t: 1.2e5, 1.0, 5e19 / 6)
+    hmode = _modes_burn(7e19, lambda t: 3e5, 1.8, 7e19 / 6)
+    print(f"  L-mode (heating < P_LH): T0 -> {lmode['T'][-1]:.1f} keV (stays cool)")
+    print(f"  H-mode (heating > P_LH): T0 -> {hmode['T'][-1]:.1f} keV, "
+          f"beta = {hmode['beta'][-1]*100:.1f}% (burning, beta-limited)")
+
+    # reversible density-limit disruption: over-fuel past n_G, then back off
+    def fuel_rev(t):
+        return 4.5e19 if 20 <= t < 33 else 7e19 / 6
+    rev = _modes_burn(7e19, lambda t: 3e5, 1.8, fuel_rev, t_end=60.0)
+    t = rev["t"]
+    T18 = rev["T"][np.argmin(np.abs(t - 18))]
+    T31 = rev["T"][np.argmin(np.abs(t - 31))]
+    T58 = rev["T"][np.argmin(np.abs(t - 58))]
+    ng31 = rev["n_e"][np.argmin(np.abs(t - 31))] / n_G
+    print(f"  over-fuel disruption: burning {T18:.1f} keV -> past n_G "
+          f"(n/n_G={ng31:.2f}) collapses to {T31:.1f} keV -> back off -> recovers "
+          f"to {T58:.1f} keV (REVERSIBLE)")
+
+    _plot_modes(lmode, hmode, rev, n_G, save)
+
+
+def _plot_modes(lmode, hmode, rev, n_G, save):
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    ax[0].axhspan(10, 25, color="0.85", alpha=0.6, label="burning band")
+    ax[0].axvline(n_G, ls="--", color="crimson", lw=1.1)
+    ax[0].text(n_G, 28, r"$n_G$", color="crimson", ha="right", va="top")
+    ax[0].plot(lmode["n_e"], lmode["T"], color="tab:blue", label="L-mode")
+    ax[0].plot(hmode["n_e"], hmode["T"], color="tab:red", label="H-mode")
+    ax[0].plot(rev["n_e"], rev["T"], color="0.35", label="over-fuel disruption")
+    ax[0].set(xlabel=r"$n_e$ [m$^{-3}$]", ylabel="T [keV]", xlim=(0, 1.25 * n_G),
+              ylim=(0, 30), title="Operating space (n, T)")
+    ax[0].legend(loc="upper left", fontsize=8)
+    ax[1].plot(rev["t"], rev["T"], color="0.2")
+    ax[1].axvspan(20, 33, color="crimson", alpha=0.15, label="over-fuel (n > n_G)")
+    ax[1].set(xlabel="t [s]", ylabel="core T [keV]",
+              title="Density-limit collapse is reversible")
+    ax[1].legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    _finish(fig, save, "operating_modes.png")
 
 
 # ---------------------------------------------------------------------------
@@ -471,6 +551,8 @@ def main(mode="burn", save=False, n_grid=129):
         run_twotemp(save=save, n_grid=n_grid)
     elif mode == "dshaped":
         run_dshaped(save=save, n_grid=n_grid)
+    elif mode == "modes":
+        run_modes(save=save)
     else:
         run_burn(save=save, n_grid=n_grid)
 
@@ -478,7 +560,8 @@ def main(mode="burn", save=False, n_grid=129):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--mode", choices=["burn", "zerod", "ash", "twotemp", "dshaped"],
+    p.add_argument("--mode",
+                   choices=["burn", "zerod", "ash", "twotemp", "dshaped", "modes"],
                    default="burn")
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--n-grid", type=int, default=129)

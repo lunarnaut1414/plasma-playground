@@ -184,6 +184,61 @@ def animate_cross_section(rho, frames, times=None, *, path, title="",
     return out
 
 
+def animate_operating_space(tracks, times=None, *, path, xlabel="", ylabel="",
+                            title="", vlines=(), band=None, xlim=None, ylim=None,
+                            fps=20, dpi=90, logx=False):
+    """Animate several trajectories sweeping together through a 2-D operating diagram.
+
+    `tracks` is a list of dicts {x, y, label, color} that share one time grid (so
+    frame i shows each track up to its i-th point with a head marker). `vlines` is a
+    list of (x, label) verticals (e.g. the Greenwald density limit); `band` is an
+    optional (y_lo, y_hi) shaded horizontal strip (e.g. the burning temperature
+    band). The reusable "operation-modes" movie: L-mode / H-mode / disruption tracks
+    on one (n, T) plane. Returns the saved Path.
+    """
+    tracks = list(tracks)
+    n_t = len(np.asarray(tracks[0]["x"]))
+    all_x = np.concatenate([np.asarray(t["x"], float) for t in tracks])
+    all_y = np.concatenate([np.asarray(t["y"], float) for t in tracks])
+    xlim = xlim or (all_x.min(), all_x.max() * 1.05 + 1e-30)
+    ylim = ylim or (min(0.0, all_y.min()), all_y.max() * 1.1 + 1e-30)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.set(xlim=xlim, ylim=ylim, xlabel=xlabel, ylabel=ylabel)
+    if logx:
+        ax.set_xscale("log")
+    if band is not None:
+        ax.axhspan(band[0], band[1], color="0.85", alpha=0.6, zorder=0,
+                   label="burning band")
+    for xv, lbl in vlines:
+        ax.axvline(xv, ls="--", color="crimson", lw=1.1)
+        ax.text(xv, ylim[1] * 0.96, lbl, color="crimson", ha="right", va="top",
+                rotation=90, fontsize=8)
+    lines, heads = [], []
+    for tk in tracks:
+        (ln,) = ax.plot([], [], color=tk.get("color"), lw=1.8, label=tk.get("label"))
+        hd = ax.scatter([], [], s=60, color=tk.get("color"), edgecolors="k",
+                        linewidths=0.6, zorder=3)
+        lines.append(ln); heads.append(hd)
+    ax.legend(loc="upper left", fontsize=8)
+    ttl = ax.set_title(title)
+
+    def draw(i):
+        for tk, ln, hd in zip(tracks, lines, heads):
+            x = np.asarray(tk["x"], float); y = np.asarray(tk["y"], float)
+            ln.set_data(x[: i + 1], y[: i + 1])
+            hd.set_offsets([[x[i], y[i]]])
+        if times is not None:
+            ttl.set_text(f"{title}   t = {times[i]:.1f} s")
+        return (*lines, *heads, ttl)
+
+    anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
 def animate_poloidal_field(R, Z, frames, times=None, *, path, mask=None, title="",
                            cmap="inferno", clabel="", fps=20, dpi=90,
                            vmin=0.0, vmax=None, levels=40):

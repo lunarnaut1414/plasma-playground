@@ -255,3 +255,27 @@
   reuse `animate.animate_torus_3d`); a **tearing/island event** coupling (C1b, Δ′>0 → island
   flatten); **B3b** (clean periodic sawtooth); or **Track E** (stellarator). Per NIGHT.md,
   C2 or Track E are the remaining showcase rungs; the core A–C ladder is essentially complete.
+
+## Track C (C2) — DONE — ee67424
+- built: **3-D torus render** of the coupled discharge. New `animate.animate_torus_nested`
+  — nested toroidal flux surfaces, each colored by its own T(ρ,t), semi-transparent (core
+  most opaque) so the radial structure shows through; the honest successor to
+  `animate_torus_3d`'s single-color stand-in. Driven by the validated Track-C
+  coupled-discharge data (no new physics). Gallery `tokamak_3d_discharge`.
+- validation: `tests/test_animate.py` — each nested surface satisfies the torus equation
+  at tube radius ρ·a (<1e-9), + a render smoke test. **203 passed**, ruff clean.
+- gif: `outputs/tokamak_3d_discharge.gif` (2.1M, rotating torus; core ρ=0.12 glows 2→29 keV
+  through 179 sawteeth: ignition→burn+sawteeth→pellet). Memo `docs/C1_COUPLED_DISCHARGE.md`
+  (C2 section).
+- gotcha: the C2 surfaces are CIRCULAR (large-aspect cylinder), not the F3 D-shaped
+  Grad–Shafranov surfaces — marrying C2 to the F3 shaped equilibrium is future polish.
+  matplotlib 3-D transparency z-ordering is imperfect but fine for nested tori (draw
+  outer→inner). Coloring by T(ρ) is honest (T is a flux function).
+- next: **Track E — stellarator** (NIGHT.md, the stretch goal). E1: a clean 3-D
+  stellarator vacuum field + flux-surface extractor (exp 05 has field lines + Poincaré);
+  validation = nested flux surfaces in the Poincaré + rotational transform ι from external
+  coils (no net plasma current); deliverable `stellarator_flux_surfaces.gif`. Then E2:
+  run the Track-A transport on stellarator flux surfaces (inherently steady-state — no
+  disruptions/sawteeth, the tokamak contrast). After Track E the A–E ladder is COMPLETE
+  → write the closing NIGHT_LOG summary and stop. (Also still open: C1b tearing-event
+  coupling, B3b clean periodic sawtooth — optional deepening.)

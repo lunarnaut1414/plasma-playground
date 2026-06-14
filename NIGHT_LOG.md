@@ -76,3 +76,31 @@
   and predict at Te0, else the window-average drifts ~12% and the test fails spuriously.
 - next: **A3 (F3)** — transport on the real Grad–Shafranov equilibrium (exp 04
   `solvers.grad_shafranov_solve`); deliverable `burn_dshaped_cross_section.gif`.
+
+## A3 (F3) — DONE (fixed-equilibrium); Picard re-solve deferred to A3b — 7a553fa
+- built: `plasmaplay/equilibrium_metrics.py` — `flux_surface_metrics` extracts
+  V'(ρ), ⟨|∇ρ|²⟩ from gridded ψ(R,Z) by the volume-derivative identity (cell
+  binning, NO contour tracing); `confinement_time_ipb98` (IPB98(y,2)).
+  `transport.FluxSurfaceTransport1D` (subclasses Transport1D) runs transport on
+  those metrics: (1/V')∂_ρ(V'⟨|∇ρ|²⟩ nχ ∂_ρT). `animate.animate_poloidal_field`
+  renders a field on the real (R,Z) cross-section. Wired: `run.py --mode dshaped`,
+  gallery `burn_dshaped_cross_section`. Reuses exp-04 `grad_shafranov_solve`.
+- validation: circular-limit metrics analytic (⟨|∇ρ|²⟩=1.000=1/a², V'∝ρ, total
+  V=59.18 vs 59.22 torus); Solov'ev solve → Shafranov shift +0.28 m, κ=1.48; the
+  flux-surface solver REDUCES to cylindrical Transport1D to <0.2%; IPB98 → ITER
+  τ_E=3.67 s (pub ~3.7). **168 passed** (7 new in `tests/test_equilibrium_metrics.py`),
+  ruff clean.
+- gif: `outputs/burn_dshaped_cross_section.gif` (1.0M, core ~28 keV / 75 MW alpha on
+  real D-shaped flux surfaces); PNG `burn_dshaped_cross_section.png`. Memo
+  `docs/A3_REAL_EQUILIBRIUM.md`.
+- gotcha: (1) no β-limit in 1-D → burn is BISTABLE (ignite→runaway ~65 keV, or die);
+  the showcase uses a sustained aux-heated SUB-ignition point (χ=0.6, n=5e19) at a
+  realistic ~28 keV. (2) numpy `ndarray.ptp()` is gone → use `np.ptp()`. (3) sim τ_E
+  (0.63 s) vs IPB98 (~0.2 s) differ ~3× — χ is showcase-tuned, NOT fit to IPB98;
+  reported honestly (IPB98 validated vs ITER only). (4) the volume-derivative
+  flux-average identity (bin |∇ρ|²·dV into ρ-shells / bin dV) is robust on coarse
+  grids — far better than tracing contours.
+- next: **A3b** (self-consistent Picard equilibrium re-solve as pressure evolves)
+  OR jump to **A4 (F3.5)** — Greenwald density limit, L→H transition, radiative
+  collapse (`operating_modes.gif`). A4 also adds the missing 1-D β-limit. Recommend
+  A4 next (higher showcase value; A3b is a refinement).

@@ -303,3 +303,55 @@
   A–E ladder complete. Per NIGHT.md the ladder's core deliverables are now ALL done
   (10 validated showcase gifs). Recommend ONE more rung (E2, a quick reuse of Track-A
   transport with a "no MHD events" contrast) then write the CLOSING SUMMARY and stop.
+
+## Track E (E2) — DONE — 424c8bd
+- built: the **steady-state contrast** — the same Track-A transport burn on a stellarator
+  is sawtooth-free. New `sawtooth.external_q_profile` (q from the coils, q>1 everywhere —
+  no current). The burning core can't drive q(0)<1 → no kink → no sawteeth/disruptions.
+- validation (`test_stellarator_burn_is_sawtooth_free`): the same hot peaked core that
+  fires a sawtooth in a current-driven tokamak is sawtooth-free on the stellarator
+  (external_q_profile has no q=1 surface → `mixing_radius` None). **206 passed**, ruff clean.
+- gif: `outputs/stellarator_burn.gif` (1.7M, **0 sawteeth vs the tokamak's 179**: smooth
+  stellarator core-T0 beside the tokamak's sawtoothing trace). Wired exp-05
+  `--mode stellarator` prints the contrast. Memo `docs/E1_STELLARATOR.md` (E2 section).
+
+---
+
+## ☑ CLOSING SUMMARY — the NIGHT.md A–E ladder is COMPLETE (2026-06-14)
+
+Built overnight as a self-paced one-rung-per-wake loop, every rung committed green with
+a checkpoint here. Final state: **206 tests pass, `ruff check .` clean, tree clean.**
+
+**Track A — burning-plasma transport (exp 09, `transport.py`):** F0 0-D Lawson burn →
+F1 He-ash + dilution + soft β-limit → F2 1-D transport → **F2.5 two-temperature (Te,Ti)
++ Spitzer equipartition** → **F3 transport on the real D-shaped Grad–Shafranov
+equilibrium** (`equilibrium_metrics.py`, V'/⟨|∇ρ|²⟩ + IPB98) → **F3.5 operating modes**
+(`operating_limits.py`: Greenwald limit, L→H bifurcation, reversible density-limit
+disruption) + a 1-D β-limit.
+
+**Track B — MHD instabilities (exp 10):** B1 cylindrical linear stability
+(`cylinder_mhd.py`: kink criterion q(0)<1, tearing Δ′, FKR γ∝S^-3/5) → B2 nonlinear
+reduced MHD (`reduced_mhd.py`: tearing island + Rutherford saturation) → B3a Kadomtsev
+reconnection (`sawtooth.py`: helical flux, energy-conserving crash).
+
+**Track C — the coupling:** C1 the event-coupled discharge (transport burn + sawtooth
+crashes, staged two-timescale; events-off recovers pure Track-A) → C2 the rotating 3-D
+torus render (`animate.animate_torus_nested`).
+
+**Track E — the stellarator (exp 05):** E1 a genuine current-free helical vacuum field
+(`fields.helical_stellarator`, ι from geometry not current) → E2 the steady-state
+transport contrast (no current → no sawteeth).
+
+**11 validated showcase gifs** (each backed by a passing test; regen `python gif_gallery.py <name>`):
+smoke_diffusion · burn_0d_ignition · burn_1d_two_temperature · burn_dshaped_cross_section ·
+operating_modes · kink_eigenmode · tearing_island_saturation · tokamak_discharge_full ·
+tokamak_3d_discharge · stellarator_flux_surfaces · stellarator_burn.
+
+**Honest open items (deepening, not blockers):** B3b a cleanly-periodic sawtooth with
+period∝τ_R (B3a got the reconnection; the cycle's period scaling was weak); C1b a
+tearing/island event coupling (only the sawtooth event is wired); A3b the self-consistent
+Picard equilibrium re-solve in F3 (geometry is fixed); stellarator F2b/F3 (Biot–Savart
+coils / a real VMEC coil set). The reduced-MHD absolute growth rate is ~0.54× the T4
+eigenvalue (a documented convention difference; scalings asserted, not the value).
+
+Loop ends here (terminal state — not rescheduling). Good night. 🌙

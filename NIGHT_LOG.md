@@ -207,3 +207,27 @@
   T inside q=1; sawtooth period ∝ resistive time. Deliverable `sawtooth_cycle.gif`.
   Then **Track C** — couple a sawtooth/tearing event into the exp-09 transport burn
   (the headline `tokamak_discharge_full.gif`).
+
+## B3a (MHD track) — PARTIAL (reconnection done; periodic cycle = B3b) — e600d77
+- built: `plasmaplay/sawtooth.py` — the Kadomtsev crash. `helical_flux` ψ*(r) (peaks
+  at the q=1 surface), `mixing_radius` (r_mix where ψ* returns to 0), `kadomtsev_flatten`
+  (area-weighted flatten conserving ∫field·r dr EXACTLY), `SawtoothCycle` (resistive
+  induction re-peaking of B_θ with core-peaked conductivity + the crash). Reuses B1
+  `screw_pinch_q`. Wired `run.py --sawtooth`.
+- validation (4 tests): ψ* peaks at q=1 surface; r_mix outside it (None if q(0)≥1);
+  flatten conserves energy to 1e-12; **single crash** flattens T (std→0), reconnects
+  helical flux core (ψ*_max 0.0198→0), resets q(0)→1.05, **thermal energy conserved to
+  2e-16**. **199 passed**, ruff clean.
+- deliverable (B3a): `outputs/sawtooth_crash.png` (before/after a single crash). Memo
+  `docs/B3_SAWTOOTH.md`.
+- gotcha: the periodic CYCLE runs (q(0)/T0 oscillate) but crashes are over-frequent and
+  period scales only **weakly with τ_R (~τ_R^0.6, not linear)** — the **near-axis current
+  re-peaks faster than the global resistive time** (q0 from the first grid cell responds
+  locally). Steady q_ss(0) calibrates with `eta_peaking` (ep=4→0.97, ep=5→0.86). For B3b:
+  need q0 to relax on the GLOBAL τ_R (e.g. trigger/measure q on a finite-radius average,
+  or a current-diffusion model with slower core re-peak). Also: `q()` must return a finite
+  on-axis value (set q[0]=q0()) or the helical-flux/mixing-radius break on the axis nan.
+- next: **B3b** — tune the periodic sawtooth (clean period ∝ τ_R) + `sawtooth_cycle.gif`;
+  OR proceed to **Track C** — couple a sawtooth/tearing event into the exp-09 transport
+  burn (headline `tokamak_discharge_full.gif`), the integrated two-timescale "dream movie".
+  Track C is the higher-value showcase; B3a already gives the crash operator Track C needs.

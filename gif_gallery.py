@@ -17,10 +17,17 @@ import sys
 
 import numpy as np
 
-from plasmaplay import (
-    animate as anim, equilibrium_metrics as em, operating_limits as ol, transport as tr,
+import matplotlib
+
+matplotlib.use("Agg", force=False)
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.animation import FuncAnimation, PillowWriter  # noqa: E402
+
+from plasmaplay import (  # noqa: E402
+    animate as anim, cylinder_mhd as cm, equilibrium_metrics as em,
+    operating_limits as ol, transport as tr,
 )
-from plasmaplay.solvers import grad_shafranov_solve
+from plasmaplay.solvers import grad_shafranov_solve  # noqa: E402
 
 OUT = "outputs"
 
@@ -231,12 +238,63 @@ def operating_modes():
     print(f"  wrote {out}")
 
 
+def kink_eigenmode():
+    """B1 (cylindrical MHD): the m=1/n=1 internal kink — the sawtooth trigger. With
+    q(0)<1 a q=1 surface exists and the core inside it shifts rigidly sideways. Left:
+    the radial eigenfunction xi_r(r) and q(r). Right: the poloidal cross-section, the
+    hot core displaced into the characteristic crescent, the displacement growing and
+    rotating. Validates that the kink is unstable exactly when q(0)<1."""
+    q0, nu = 0.85, 1.0
+    r1 = cm.rational_surface(1, 1, q0, nu)
+    print(f"  [kink_eigenmode] q(0)={q0} < 1 -> internal kink UNSTABLE, "
+          f"q=1 surface at r1={r1:.3f} (kink_unstable={cm.internal_kink_unstable(q0)})")
+
+    nr, nth, nframes = 60, 120, 90
+    rg = np.linspace(1e-3, 1.0, nr)
+    th = np.linspace(0, 2 * np.pi, nth)
+    RR, TH = np.meshgrid(rg, th, indexing="ij")
+    xi_r = cm.internal_kink_xi(rg, r1)              # ideal m=1 top-hat displacement
+    XI = cm.internal_kink_xi(RR, r1)
+    Fcore = 1.0 - RR ** 2                            # a "temperature" peaked on axis
+    q_of_r = cm.screw_pinch_q(rg, q0, nu)
+    amp = 0.33 * (np.linspace(0, 1, nframes) ** 1.5)   # growing mode amplitude
+    phase = np.linspace(0, 1.5 * np.pi, nframes)       # helical rotation
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(11, 5.2))
+    axL.plot(rg, xi_r, color="crimson", lw=2, label=r"$\xi_r(r)$ (kink)")
+    axL.plot(rg, q_of_r, color="navy", lw=1.5, label="q(r)")
+    axL.axhline(1.0, color="0.6", ls=":", lw=0.9)
+    axL.axvline(r1, color="k", ls="--", lw=0.9)
+    axL.text(r1, 1.7, "q=1", rotation=90, va="bottom", ha="right", fontsize=8)
+    axL.set(xlabel="r/a", ylim=(0, 2.0), title="m=1 internal kink: eigenfunction & q(r)")
+    axL.legend(loc="center right", fontsize=8)
+    axR.set_aspect("equal")
+
+    def draw(i):
+        axR.clear(); axR.set_aspect("equal"); axR.set_xticks([]); axR.set_yticks([])
+        A, ph = amp[i], phase[i]
+        X = RR * np.cos(TH) + A * XI * np.cos(ph)
+        Y = RR * np.sin(TH) + A * XI * np.sin(ph)
+        axR.contourf(X, Y, Fcore, levels=40, cmap="inferno")
+        # the q=1 surface (undisplaced reference circle)
+        axR.plot(r1 * np.cos(th), r1 * np.sin(th), color="cyan", lw=1.0, ls="--")
+        axR.set_xlim(-1.15, 1.15); axR.set_ylim(-1.15, 1.15)
+        axR.set_title(f"core displaced (m=1), amp={A:.2f}")
+
+    an = FuncAnimation(fig, draw, frames=nframes, blit=False)
+    out = f"{OUT}/kink_eigenmode.gif"
+    an.save(out, writer=PillowWriter(fps=18), dpi=90)
+    plt.close(fig)
+    print(f"  wrote {out}")
+
+
 GALLERY = {
     "smoke_diffusion": smoke_diffusion,
     "burn_0d_ignition": burn_0d_ignition,
     "burn_1d_two_temperature": burn_1d_two_temperature,
     "burn_dshaped_cross_section": burn_dshaped_cross_section,
     "operating_modes": operating_modes,
+    "kink_eigenmode": kink_eigenmode,
 }
 
 

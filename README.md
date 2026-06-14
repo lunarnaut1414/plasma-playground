@@ -65,6 +65,7 @@ is defined in [`docs/FIDELITY.md`](docs/FIDELITY.md).
 | 07 | MHD accelerator (space drive) ✅ | J×B body force, magnetic nozzle concept | [plan](experiments/07_mhd_space_drive/PLAN.md) | numpy / scipy |
 | 08 | Plasma waves & dispersion ✅ | cold/warm plasma dispersion relations | [plan](experiments/08_plasma_waves_dispersion/PLAN.md) | [PlasmaPy](https://docs.plasmapy.org) |
 | 09 | Burning plasma (transport) ✅ | ignition → steady burn → fuel injection; He-ash & β-limit; two-temperature Te/Ti; real D-shaped equilibrium; operating modes (L/H/disruption) | [plan](experiments/09_burning_plasma/PLAN.md) | numpy (ASTRA-like) |
+| 10 | Tokamak MHD stability ✅ | straight-tokamak linear stability: m=1 internal kink (sawtooth trigger), tearing Δ′, FKR growth | [plan](experiments/10_tokamak_stability/PLAN.md) | numpy / scipy |
 
 ✅ = implemented. Each plan marks which fidelity rungs are done.
 

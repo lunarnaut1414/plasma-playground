@@ -57,8 +57,9 @@ def smoke_diffusion():
     print(f"  [smoke_diffusion] mass drift = {np.abs(mass / mass[0] - 1).max():.2e} "
           f"(conserved); peak-law err = {np.abs(peak / exp_peak - 1).max():.2e}")
     out = anim.animate_profiles(x, frames, times, path=f"{OUT}/_smoke_diffusion.gif",
-                                ylabel="c(x,t)", title="G1 smoke: 1-D diffusion",
-                                fps=20, dpi=90)
+                                xlabel="x", ylabel="c(x, t)", colors=["#22d3ee"],
+                                title="G1 smoke test: 1-D diffusion (mass-conserving)",
+                                fps=20, dpi=110)
     print(f"  wrote {out}")
 
 

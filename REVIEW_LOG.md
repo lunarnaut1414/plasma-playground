@@ -211,6 +211,17 @@ Verify: regenerated (T 14.3, beta 4.17%, f_He 5.2%, ash 0.991 — unchanged); re
 complete ignition story in the labeled burning band. pytest 211; ruff clean. size 0.55 MB.
 Next: R11 = _smoke_diffusion (lowest priority).
 
+## R11 — _smoke_diffusion — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D3  ->  (after): A5 B5 C5 D5
+Saw: diffusing Gaussian, peak decays 0.40->0.13, mass conserved — correct. xlabel wrongly
+said "r/a" (this is Cartesian x in [-8,8], not a minor radius). White (pre-R9 file).
+Defect: C-axis (wrong xlabel) + D-axis (white). Near-freebie: animate_profiles is now
+dark-by-default (R9), so a regen alone darkens it.
+Did: TWEAK. xlabel "r/a"->"x", cyan line, title -> "G1 smoke test: 1-D diffusion
+(mass-conserving)", dpi 90->110. Inherits the dark house style for free.
+Verify: regenerated (mass drift 9.08e-3, peak-law err 2.2e-16 — unchanged); re-dumped+Read
+— clean dark Gaussian. No new test (style-only). Next: R-final sweep.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

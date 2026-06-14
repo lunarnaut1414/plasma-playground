@@ -279,3 +279,27 @@
   disruptions/sawteeth, the tokamak contrast). After Track E the A–E ladder is COMPLETE
   → write the closing NIGHT_LOG summary and stop. (Also still open: C1b tearing-event
   coupling, B3b clean periodic sawtooth — optional deepening.)
+
+## Track E (E1) — DONE — f7cb6f7
+- built: a **genuine current-free vacuum stellarator** — new `fields.helical_stellarator`:
+  the straight-stellarator helical vacuum field B=∇Φ, Φ=B0 z+ε I_l(hr)cos(lθ−hz)
+  (modified Bessel), **curl-free** so ι comes from 3-D geometry with ZERO net plasma
+  current — the defining contrast with the tokamak (and with exp-05's screw pinch, whose
+  twist is current-driven). ι appears at 2nd order, ι∝ε². Reused `diagnostics`
+  poincare_section / rotational_transform / trace_field_line.
+- validation (2 tests, `tests/test_fields.py`): ∇×B≈0 (<1e-4) + ∮B·dl≈0 around axis
+  (<1e-9) → no net current; ι≠0 and grows with helical amplitude (ι=0.015/0.021/0.039 for
+  ε=0.3/0.5/0.7 at high res). Nested flux surfaces in the Poincaré. **205 passed**, ruff clean.
+- gif: `outputs/stellarator_flux_surfaces.gif` (1.25M, twisty nested flux surfaces of the
+  l=2 vacuum field, straight cylinder mapped to a torus, rotating); PNG `..._surfaces.png`
+  (Poincaré + 3-D). Wired `run.py --mode stellarator`. Memo `docs/E1_STELLARATOR.md`.
+- gotcha: the absolute ι from field-line tracing has a finite-step floor (~5e-3) so the
+  ι∝ε² coefficient is resolution-sensitive — tests assert the ROBUST facts (curl-free,
+  ι≠0, ι monotone in ε), not a precise ε² coefficient. The screw_pinch's ι is current-
+  driven (NOT a real stellarator) — needed a genuinely curl-free field. Map straight
+  cylinder→torus (φ=z·2π/Z_total) only for rendering; physics is the straight large-aspect limit.
+- next: **E2** (run the Track-A transport on stellarator flux surfaces — inherently
+  steady-state: no sawteeth/disruptions, the explicit tokamak contrast); OR declare the
+  A–E ladder complete. Per NIGHT.md the ladder's core deliverables are now ALL done
+  (10 validated showcase gifs). Recommend ONE more rung (E2, a quick reuse of Track-A
+  transport with a "no MHD events" contrast) then write the CLOSING SUMMARY and stop.

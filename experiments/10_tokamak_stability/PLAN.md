@@ -1,9 +1,10 @@
 # 10 — Tokamak MHD stability — Plan & fidelity ladder
 
 > Fidelity ladder defined in [`docs/FIDELITY.md`](../../docs/FIDELITY.md).
-> **Status:** B1 (cylinder linear stability, `cylinder_mhd.py`, 14 tests) and B2
+> **Status:** B1 (cylinder linear stability, `cylinder_mhd.py`, 14 tests), B2
 > (nonlinear reduced-MHD tearing island + Rutherford saturation, `reduced_mhd.py`,
-> 4 tests) implemented. B3 (the sawtooth cycle) is next.
+> 4 tests), and B3a (Kadomtsev reconnection, `sawtooth.py`, 4 tests) implemented. The
+> tuned periodic sawtooth cycle (B3b) and Track C (MHD↔transport coupling) are next.
 
 ## The question
 
@@ -52,11 +53,20 @@ later, toroidal rungs.)
   is influenced by the wall. The Δ′(W)→0 Rutherford form is shown qualitatively via the
   dW/dt turnover, not fit to the analytic Rutherford coefficient.
 
-### B3 — The sawtooth cycle (Kadomtsev)  ◻ not yet
-- **Models:** when q(0)<1, an m=1 reconnection flattens the core (helical-flux
-  conserving); q(0) relaxes >1, resistive diffusion re-peaks it, repeat.
-- **Validation:** helical-flux conservation; period scales with the resistive time.
-- **Deliverable:** `sawtooth_cycle.gif`.
+### B3 — The Kadomtsev sawtooth  ◧ B3a reconnection done; periodic cycle = B3b
+- **Models:** `plasmaplay/sawtooth.py` — the helical flux ψ*(r), the Kadomtsev mixing
+  radius, the energy-conserving `kadomtsev_flatten`, and a `SawtoothCycle` (resistive
+  induction re-peaking + the crash). When q(0)<1 the m=1 reconnection flattens the core
+  (q→1) and the temperature, conserving thermal energy.
+- **Validation (B3a):** ψ* peaks at the q=1 surface; r_mix sits outside it; the flatten
+  conserves ∫T·r dr exactly; a single crash flattens T (energy conserved to 2e-16),
+  reconnects the helical flux core to ~0, and resets q(0)→1. *(4 tests)*
+- **Deliverable (B3a):** `outputs/sawtooth_crash.png` — before/after a single crash
+  (`run.py --sawtooth`).
+- **B3b (next):** the tuned **periodic cycle** — the crashes are presently
+  over-frequent and the period scales only weakly with τ_R (~τ_R^0.6); a clean
+  period ∝ τ_R sawtooth and `sawtooth_cycle.gif` need a re-peaking timescale set by
+  the global resistive diffusion rather than the fast near-axis dynamics.
 
 ## Toward the coupling (Track C)
 

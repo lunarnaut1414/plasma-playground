@@ -31,7 +31,9 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plasmaplay import cylinder_mhd as cm, plotting, reduced_mhd as rm, tearing as tg
+from plasmaplay import (
+    cylinder_mhd as cm, plotting, reduced_mhd as rm, sawtooth as st, tearing as tg,
+)
 
 
 def main(save=False):
@@ -170,14 +172,74 @@ def _plot_island(sim, ts, W, save):
     plt.close(fig)
 
 
+def run_sawtooth(save=False):
+    """B3a: a single Kadomtsev reconnection (the sawtooth crash). Shows the helical
+    flux, the mixing radius, and that the crash flattens T inside r_mix conserving
+    thermal energy while reconnecting q -> 1 (the helical flux core -> 0)."""
+    print("\n--- B3a: Kadomtsev sawtooth crash (single reconnection) ---")
+    sim = st.SawtoothCycle(eta=0.3, nr=161, q0_init=0.82, chi=0.03, heat=0.0,
+                           q_reset=1.05)
+    q_before, T_before = sim.q().copy(), sim.T.copy()
+    psi_before = st.helical_flux(sim.r, q_before)
+    r1 = sim.r[int(np.argmin(np.abs(q_before - 1.0)))]
+    r_mix = st.mixing_radius(sim.r, q_before)
+    inside = sim.r <= r_mix
+    e0 = np.trapezoid(sim.T[inside] * sim.r[inside], sim.r[inside])
+    print(f"  before: q(0) = {sim.q0():.3f} < 1 (kink-unstable), q=1 surface r1 = {r1:.3f}")
+    print(f"  Kadomtsev mixing radius r_mix = {r_mix:.3f}, psi*_max = {psi_before.max():.4f}")
+    sim._crash()
+    e1 = np.trapezoid(sim.T[inside] * sim.r[inside], sim.r[inside])
+    psi_after = st.helical_flux(sim.r, sim.q())
+    print(f"  after crash: q(0) = {sim.q0():.3f} (reconnected -> 1), core T flattened "
+          f"(std {sim.T[inside].std():.1e})")
+    print(f"  helical flux core reconnected: psi*_max {psi_before.max():.4f} -> "
+          f"{psi_after.max():.4f}")
+    print(f"  thermal energy conserved across the crash: {e0:.5f} -> {e1:.5f} "
+          f"(rel {abs(e1/e0-1):.1e})")
+    print("  NOTE: the periodic sawtooth cycle + period~tau_R scaling is rung B3b")
+    _plot_sawtooth(sim, q_before, T_before, psi_before, r_mix, save)
+
+
+def _plot_sawtooth(sim, q_before, T_before, psi_before, r_mix, save):
+    r = sim.r
+    fig, ax = plt.subplots(1, 3, figsize=(15, 4.6))
+    ax[0].plot(r, T_before, "--", color="0.5", label="before")
+    ax[0].plot(r, sim.T, color="crimson", label="after (flattened)")
+    ax[0].axvline(r_mix, color="k", ls=":", lw=0.8)
+    ax[0].set(xlabel="r/a", ylabel="T", title="Temperature crash"); ax[0].legend()
+    ax[1].plot(r, q_before, "--", color="0.5", label="before")
+    ax[1].plot(r, sim.q(), color="navy", label="after")
+    ax[1].axhline(1.0, color="0.6", ls=":"); ax[1].axvline(r_mix, color="k", ls=":", lw=0.8)
+    ax[1].set(xlabel="r/a", ylabel="q", ylim=(0.6, 2.0), title="q -> 1 in the core")
+    ax[1].legend()
+    ax[2].plot(r, psi_before, "--", color="0.5", label="before")
+    ax[2].plot(r, st.helical_flux(r, sim.q()), color="seagreen", label="after (reconnected)")
+    ax[2].axvline(r_mix, color="k", ls=":", lw=0.8)
+    ax[2].set(xlabel="r/a", ylabel=r"$\psi^*$", title="Helical flux reconnects")
+    ax[2].legend()
+    fig.suptitle("Kadomtsev sawtooth crash: reconnection flattens the core", y=1.02)
+    fig.tight_layout()
+    if save:
+        out = plotting.ensure_outputs_dir(__file__) / "sawtooth_crash.png"
+        fig.savefig(out, dpi=130, bbox_inches="tight")
+        print(f"  saved {out}")
+    else:
+        plt.show()
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--save", action="store_true", help="write figures to ./outputs/")
     p.add_argument("--island", action="store_true",
                    help="run the B2 nonlinear reduced-MHD tearing-island demo")
+    p.add_argument("--sawtooth", action="store_true",
+                   help="run the B3a Kadomtsev sawtooth-crash demo")
     args = p.parse_args()
     if args.island:
         run_island(save=args.save)
+    elif args.sawtooth:
+        run_sawtooth(save=args.save)
     else:
         main(save=args.save)

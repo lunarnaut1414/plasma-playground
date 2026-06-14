@@ -8,12 +8,13 @@ from . import (
     constants, fields, pushers, plotting, integrators, diagnostics, solvers, pic,
     fvm, propulsion, guiding_center, dispersion, tokamak, transport, animate,
     equilibrium_metrics, operating_limits, tearing, cylinder_mhd, reduced_mhd,
+    sawtooth,
 )
 
 __all__ = [
     "constants", "fields", "pushers", "plotting", "integrators", "diagnostics",
     "solvers", "pic", "fvm", "propulsion", "guiding_center", "dispersion", "tokamak",
     "transport", "animate", "equilibrium_metrics", "operating_limits", "tearing",
-    "cylinder_mhd", "reduced_mhd",
+    "cylinder_mhd", "reduced_mhd", "sawtooth",
 ]
 __version__ = "0.1.0"

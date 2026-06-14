@@ -16,6 +16,7 @@ on an Apple-Silicon Mac (M2 Max, 96 GB), single machine, mostly CPU.
 3. `docs/FUNDAMENTALS.md` — the **shared kernels + validation test suite to build first** (the engineering plan).
 4. `experiments/NN_*/PLAN.md` — per-experiment fidelity ladder (what to build, in what order, how to validate each rung).
 5. `docs/3D_TOKAMAK_GUIDE.md` — cross-experiment roadmap toward a 3-D tokamak (T0–T4), reusing existing kernels.
+6. `NIGHT.md` — **if working autonomously/overnight**, this is the active work charter (transport + MHD + gif deliverables); resume from `NIGHT_LOG.md`.
 
 ## Layout
 

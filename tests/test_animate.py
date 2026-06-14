@@ -130,6 +130,20 @@ def test_apply_house_style_dark_and_light():
     plt.close(fig2)
 
 
+def test_animate_operating_space_writes_gif(tmp_path):
+    """Several tracks sweep an (n,T) operating diagram with a band + Greenwald vline;
+    the dark-themed movie writes a multi-frame gif."""
+    t = np.linspace(0, 1, 8)
+    tracks = [
+        {"x": 5e19 + 1e19 * t, "y": 5 + 0 * t, "label": "L", "color": "#22d3ee"},
+        {"x": 7e19 + 1e20 * t, "y": 22 - 20 * t, "label": "disrupt", "color": "#c0c5cf"},
+    ]
+    out = anim.animate_operating_space(tracks, t, path=tmp_path / "ops.gif",
+                                       vlines=[(2.2e20, "n_G")], band=(10.0, 25.0),
+                                       fps=6, dpi=60)
+    assert out.exists() and Image.open(out).n_frames == 8
+
+
 def test_animate_discharge_3d_writes_gif(tmp_path):
     """The two-panel 3-D discharge (glowing torus + bullseye T(rho)) animates a full
     profile, accepts a per-frame crash count, and writes a multi-frame gif."""

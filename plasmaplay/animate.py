@@ -217,7 +217,7 @@ def animate_cross_section(rho, frames, times=None, *, path, title="",
 
 def animate_operating_space(tracks, times=None, *, path, xlabel="", ylabel="",
                             title="", vlines=(), band=None, xlim=None, ylim=None,
-                            fps=20, dpi=90, logx=False):
+                            fps=20, dpi=90, logx=False, dark=True):
     """Animate several trajectories sweeping together through a 2-D operating diagram.
 
     `tracks` is a list of dicts {x, y, label, color} that share one time grid (so
@@ -235,24 +235,30 @@ def animate_operating_space(tracks, times=None, *, path, xlabel="", ylabel="",
     ylim = ylim or (min(0.0, all_y.min()), all_y.max() * 1.1 + 1e-30)
 
     fig, ax = plt.subplots(figsize=(7, 5))
+    txt = apply_house_style(fig, [ax], dark=dark)
     ax.set(xlim=xlim, ylim=ylim, xlabel=xlabel, ylabel=ylabel)
     if logx:
         ax.set_xscale("log")
     if band is not None:
-        ax.axhspan(band[0], band[1], color="0.85", alpha=0.6, zorder=0,
-                   label="burning band")
+        band_color = "#ffd166" if dark else "0.85"
+        ax.axhspan(band[0], band[1], color=band_color, alpha=0.12 if dark else 0.6,
+                   zorder=0, label="burning band")
     for xv, lbl in vlines:
-        ax.axvline(xv, ls="--", color="crimson", lw=1.1)
-        ax.text(xv, ylim[1] * 0.96, lbl, color="crimson", ha="right", va="top",
+        ax.axvline(xv, ls="--", color="#ff5a5a", lw=1.1)
+        ax.text(xv, ylim[1] * 0.96, lbl, color="#ff5a5a", ha="right", va="top",
                 rotation=90, fontsize=8)
     lines, heads = [], []
+    edge = txt if dark else "k"
     for tk in tracks:
         (ln,) = ax.plot([], [], color=tk.get("color"), lw=1.8, label=tk.get("label"))
-        hd = ax.scatter([], [], s=60, color=tk.get("color"), edgecolors="k",
+        hd = ax.scatter([], [], s=60, color=tk.get("color"), edgecolors=edge,
                         linewidths=0.6, zorder=3)
         lines.append(ln); heads.append(hd)
-    ax.legend(loc="upper left", fontsize=8)
-    ttl = ax.set_title(title)
+    leg = ax.legend(loc="upper left", fontsize=8,
+                    facecolor=HOUSE_BG if dark else "white",
+                    edgecolor=txt, labelcolor=txt if dark else "black")
+    leg.get_frame().set_alpha(0.6)
+    ttl = ax.set_title(title, color=txt)
 
     def draw(i):
         for tk, ln, hd in zip(tracks, lines, heads):

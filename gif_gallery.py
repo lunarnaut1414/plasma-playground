@@ -225,17 +225,17 @@ def operating_modes():
     sl = slice(0, None, max(1, lmode["t"].size // 110))
     tracks = [
         {"x": lmode["n_e"][sl], "y": lmode["T"][sl], "label": "L-mode (sub-threshold)",
-         "color": "tab:blue"},
+         "color": "#22d3ee"},
         {"x": hmode["n_e"][sl], "y": hmode["T"][sl], "label": "H-mode (burning)",
-         "color": "tab:red"},
+         "color": "#ff5a5a"},
         {"x": disrupt["n_e"][sl], "y": disrupt["T"][sl],
-         "label": "over-fuel -> disruption", "color": "0.35"},
+         "label": "over-fuel → disruption", "color": "#c0c5cf"},
     ]
     out = anim.animate_operating_space(
         tracks, lmode["t"][sl], path=f"{OUT}/operating_modes.gif",
         xlabel=r"$n_e$ [m$^{-3}$]", ylabel="T [keV]", title="Tokamak operating modes",
         vlines=[(_N_G, r"Greenwald limit $n_G$")], band=(10.0, 25.0),
-        xlim=(0, 1.25 * _N_G), ylim=(0, 30), fps=20, dpi=90)
+        xlim=(0, 1.25 * _N_G), ylim=(0, 30), fps=20, dpi=110)
     print(f"  wrote {out}")
 
 

@@ -142,6 +142,23 @@ honest, the crescent clear. pytest 208; ruff clean. No new test (style+labeling;
 physics covered in test_cylinder_mhd). size 1.1 MB.
 Next: R7 = operating_modes.
 
+## R7 — operating_modes — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D2  ->  (after): A5 B5 C5 D5
+Saw: the operating-window physics is clear + correct (L-mode stays cool, H-mode ignites
+into the burning band ~22 keV, over-fuel crosses the Greenwald limit n_G and the
+confinement collapses to ~0.6 keV / n_e/n_G=1.20). Well-paced (45 s, 5.5 s playback). Only
+flaw: default white (clashing) and the disruption track was dark grey "0.35" (near-invisible
+on dark).
+Defect: D-axis (white) + a track color that wouldn't survive the dark theme.
+Did: TWEAK in the SHARED renderer — added dark=True to anim.animate_operating_space
+(house-style bg, gold burning band, #ff5a5a Greenwald vline, light head edges, dark legend).
+Brightened the gallery track colors (L cyan, H red, disruption #c0c5cf). dpi 90->110.
+Added the previously-MISSING smoke test for animate_operating_space (dark path, band+vline).
+Verify: regenerated (n_G 2.23e20, P_LH~16 MW, L 5.1 / H 22.3 / disrupt 0.6 keV — unchanged);
+re-dumped+Read — dark, the disruption clearly diving past n_G. pytest 209 (+1); ruff clean.
+size 0.49 MB.
+Next: R8 = burn_dshaped_cross_section.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

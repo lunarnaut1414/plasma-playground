@@ -47,13 +47,21 @@ resolution (~5e-3 at the mixing boundary); and **turning events off gives 0 cras
 and the pure Track-A burn** (the sawteeth shift the core by up to ~16 keV — the
 coupling is real, not a no-op).
 
-## Deliverable
+## Deliverables
 
-`outputs/tokamak_discharge_full.gif` — the integrated discharge: the poloidal
-cross-section T(ρ,t) beside the core-T0 sawtooth trace and q(0) crossing the kink
-threshold, through **ignition → burning H-mode with periodic sawteeth → pellet fuel
-injection → settling**. Regen: `python gif_gallery.py tokamak_discharge_full`;
-`python experiments/09_burning_plasma/run.py --mode coupled --save` for the still.
+- `outputs/tokamak_discharge_full.gif` (C1) — the integrated discharge: the poloidal
+  cross-section T(ρ,t) beside the core-T0 sawtooth trace and q(0) crossing the kink
+  threshold, through **ignition → burning H-mode with periodic sawteeth → pellet fuel
+  injection → settling**. Regen: `python gif_gallery.py tokamak_discharge_full`;
+  `python experiments/09_burning_plasma/run.py --mode coupled --save` for the still.
+- `outputs/tokamak_3d_discharge.gif` (**C2** — the 3-D showcase): the same discharge
+  rendered on the **3-D torus** as **nested flux surfaces colored by their temperature**,
+  rotating — the burn heats the core (the inner surfaces glow), and each sawtooth crash
+  visibly flattens it. Built with `animate.animate_torus_nested` (the honest successor
+  to `animate_torus_3d`'s single-color stand-in: it colors each flux surface by its own
+  T(ρ,t), so the radial structure and the crashes are visible). Reuses the validated
+  Track-C coupled-discharge data; the new geometry is tested in `tests/test_animate.py`.
+  Regen: `python gif_gallery.py tokamak_3d_discharge`.
 
 ## Scope boundary (stated honestly)
 
@@ -67,7 +75,11 @@ injection → settling**. Regen: `python gif_gallery.py tokamak_discharge_full`;
 - **Energy conservation across a crash is ~5e-3** (full-domain), limited by the
   mixing-boundary grid cell; the kernel conserves the inside-region integral exactly.
 - Only the **sawtooth** event is wired; a tearing/island event (Δ′>0 → island
-  flattening) is the natural next coupling (C1b), and the 3-D torus render is C2.
+  flattening) is the natural next coupling (C1b).
+- The **C2 3-D render colors the flux surfaces by their flux-function temperature**
+  T(ρ) — physically honest (T is a flux function) — but the surfaces are circular
+  (the large-aspect-ratio cylinder geometry), not the D-shaped Grad–Shafranov ones of
+  F3; marrying the C2 render to the F3 shaped equilibrium is a future polish.
 
 ## References
 - NIGHT.md Track C — the staged two-timescale coupling charter.

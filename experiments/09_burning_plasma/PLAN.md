@@ -165,8 +165,10 @@ fires an m=1 **sawtooth crash** (via `sawtooth.sawtooth_event`) whenever the bur
 core drives q(0) below the kink threshold — the staged two-timescale model (transport
 on τ_E seconds; the MHD crash instantaneous on that scale). Validated: each crash
 conserves particles + energy; **events off recovers the pure Track-A burn**; ~179
-sawteeth over a discharge, core T0 sawtoothing 23–26 keV. Deliverable:
-`tokamak_discharge_full.gif`. (A tearing/island event and the 3-D render are next.)
+sawteeth over a discharge, core T0 sawtoothing 23–26 keV. Deliverables:
+`tokamak_discharge_full.gif` (cross-section + traces) and **`tokamak_3d_discharge.gif`
+(C2: the rotating 3-D torus, nested flux surfaces colored by T, sawteeth visible)**. (A
+tearing/island event coupling is the natural next step.)
 
 ## Diagnostics you'll reuse
 Triple-product / Lawson check, Q = P_fusion/P_aux, profile snapshots, the poloidal

@@ -280,6 +280,55 @@ def animate_poloidal_field(R, Z, frames, times=None, *, path, mask=None, title="
     return out
 
 
+def animate_torus_nested(rho_levels, T_rt, times=None, *, path, R0=3.0, a=1.0,
+                         n_u=70, n_v=36, cmap="inferno", title="", fps=16, dpi=90,
+                         vmin=0.0, vmax=None, rotate=True):
+    """Animate NESTED toroidal flux surfaces each colored by its own temperature.
+
+    `rho_levels` is a 1-D array of normalized radii (0 < rho <= 1); `T_rt` is
+    (n_t, n_levels) the temperature on each surface over time. Each flux surface is
+    drawn as a torus of tube radius rho*a, semi-transparent, outer surfaces first so
+    the hot core shows through — the honest 3-D successor to `animate_torus_3d`'s
+    single-color stand-in: you see the radial T structure, and a sawtooth crash
+    visibly flattens (cools) the core surfaces. The camera azimuth sweeps if `rotate`.
+    """
+    rho_levels = np.asarray(rho_levels, dtype=float)
+    T_rt = np.asarray(T_rt, dtype=float)
+    n_t = T_rt.shape[0]
+    vmax = float(T_rt.max()) if vmax is None else vmax
+    norm = plt.Normalize(vmin=vmin, vmax=max(vmax, vmin + 1e-9))
+    cmap_obj = matplotlib.colormaps[cmap]
+    # precompute each surface geometry (outer -> inner) and a per-surface alpha
+    order = np.argsort(rho_levels)[::-1]
+    surfaces = [(torus_surface(R0, rho_levels[j] * a, n_u, n_v), j) for j in order]
+    alphas = {j: 0.25 + 0.6 * (1.0 - rho_levels[j]) for j in order}   # core more opaque
+
+    fig = plt.figure(figsize=(6, 5))
+    ax = fig.add_subplot(111, projection="3d")
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    fig.colorbar(sm, ax=ax, label="T [keV]", shrink=0.7)
+
+    def draw(i):
+        ax.clear(); ax.set_axis_off()
+        for (X, Y, Z), j in surfaces:
+            ax.plot_surface(X, Y, Z, color=cmap_obj(norm(T_rt[i, j])), rstride=2,
+                            cstride=2, linewidth=0, antialiased=False,
+                            alpha=alphas[j], shade=True)
+        rng = R0 + a
+        ax.set_xlim(-rng, rng); ax.set_ylim(-rng, rng); ax.set_zlim(-rng, rng)
+        ax.set_box_aspect((1, 1, 1))
+        if rotate:
+            ax.view_init(elev=32, azim=(360.0 * i / max(n_t, 1)))
+        t = f"   t = {times[i]:.1f} s" if times is not None else ""
+        ax.set_title(f"{title}{t}")
+
+    anim = FuncAnimation(fig, draw, frames=n_t, blit=False)
+    out = _prepare(path)
+    anim.save(str(out), writer=PillowWriter(fps=fps), dpi=dpi)
+    plt.close(fig)
+    return out
+
+
 def animate_torus_3d(edge_value, *, path, R0=3.0, a=1.0, n_u=80, n_v=40,
                      cmap="inferno", title="", fps=20, dpi=90, rotate=True,
                      vmin=None, vmax=None):

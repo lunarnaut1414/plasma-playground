@@ -96,3 +96,18 @@ def test_animate_torus_3d_writes_gif(tmp_path):
     out = anim.animate_torus_3d(edge, path=tmp_path / "torus.gif",
                                 title="torus", fps=8, dpi=60)
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_nested_torus_surface_radii(tmp_path):
+    """Each nested flux surface is a torus of tube radius rho*a (it satisfies the
+    torus equation at that radius), and the animation writes a gif."""
+    R0, a = 3.0, 1.0
+    for rho in (0.3, 0.7, 1.0):
+        X, Y, Z = anim.torus_surface(R0, rho * a, n_u=40, n_v=24)
+        resid = (np.sqrt(X**2 + Y**2) - R0) ** 2 + Z**2 - (rho * a) ** 2
+        assert np.max(np.abs(resid)) < 1e-9
+    rho_levels = np.array([0.2, 0.6, 1.0])
+    T_rt = np.array([[10.0, 5.0, 1.0], [20.0, 8.0, 1.0], [4.0, 4.0, 1.0]])  # incl. a crash
+    out = anim.animate_torus_nested(rho_levels, T_rt, path=tmp_path / "nested.gif",
+                                    fps=6, dpi=60, n_u=30, n_v=18)
+    assert out.exists() and out.stat().st_size > 0

@@ -183,3 +183,27 @@
   `tearing_island_saturation.gif`. (A ~700-step-to-t700 run was started this wake but
   not completed; the solver is ready, just needs a long run + a falsifiable saturation
   check.) Then **B3** sawtooth cycle, then **Track C** (couple MHD event into exp-09 burn).
+
+## B2b (MHD track) — DONE (B2 complete) — abf7be1
+- built: followed the reduced-MHD tearing mode into nonlinear **Rutherford saturation**.
+  The island width W(t) grows, then **dW/dt peaks and declines** (to <0.3× peak) as W
+  bends toward W_sat ~ 2 sheet widths — the island stops growing exponentially. Reached
+  at small Lundquist number (S=100, short resistive saturation time ~S·τ_A).
+- validation: new test `test_island_growth_saturates` — dW/dt turns over before the run
+  ends AND late dW/dt < 0.7× peak, W finite & O(sheet width). (At S=100: peak dW/dt
+  1.24e-2 at t≈133, falls to ~3.5e-3, ratio ~0.28.) **195 passed**, ruff clean.
+- gif: `outputs/tearing_island_saturation.gif` (2.8M, W(t) bending over beside the flux
+  contours of the reconnecting/saturating island); PNG `tearing_island_saturation.png`
+  (`run.py --island`). Memo `docs/B2_REDUCED_MHD.md` marked DONE.
+- gotcha: full saturation needs the **resistive timescale ~S·τ_A** — too slow at S=400
+  (t~500+), so use **S=100** to reach it in ~28s (test-affordable). Saturation is shown
+  via the **dW/dt turnover** (robust, fast), NOT fit to the analytic Rutherford
+  coefficient; asymptotic W_sat is wall-influenced. Replaced the B2a `tearing_island`
+  gif with the saturation one.
+- next: **B3 — the sawtooth cycle (Kadomtsev)** (NIGHT.md Track B3): when q(0)<1 an m=1
+  reconnection flattens the core conserving helical flux; q(0) relaxes >1, resistive
+  diffusion re-peaks it, repeats. Reuse B1 (`cylinder_mhd` q-profile, internal-kink
+  trigger) + B2 (`reduced_mhd`). Validation: helical-flux conservation; crash flattens
+  T inside q=1; sawtooth period ∝ resistive time. Deliverable `sawtooth_cycle.gif`.
+  Then **Track C** — couple a sawtooth/tearing event into the exp-09 transport burn
+  (the headline `tokamak_discharge_full.gif`).

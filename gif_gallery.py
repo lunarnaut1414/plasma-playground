@@ -122,8 +122,10 @@ def burn_1d_two_temperature():
     out = anim.animate_profiles(
         sim.rho, frames, times, path=f"{OUT}/burn_1d_two_temperature.gif",
         labels=[r"$T_e$ (electrons)", r"$T_i$ (ions, NBI-heated)"],
+        colors=["#22d3ee", "#ff9f45"], shade_between=(0, 1),
+        shade_label=r"shaded $= T_i - T_e$  (equipartition lag, $\tau_{eq}$)",
         xlabel=r"$\rho = r/a$", ylabel="T [keV]",
-        title="Two-temperature burn: ions hotter than electrons", fps=20, dpi=90)
+        title="Two-temperature burn: ions hotter than electrons", fps=20, dpi=110)
     print(f"  wrote {out}")
 
 

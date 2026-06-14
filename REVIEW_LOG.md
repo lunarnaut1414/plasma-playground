@@ -180,6 +180,20 @@ re-dumped+Read — clean dark glowing cross-section. pytest 210 (+1); ruff clean
 Note: D-axis stays 4 (the equilibrium genuinely isn't a triangular D; not faked — the repo
 calls it D-shaped throughout, kept consistent). Next: R9 = burn_1d_two_temperature.
 
+## R9 — burn_1d_two_temperature — TWEAK — (pending commit)
+Scores (before): A5 B5 C4 D2  ->  (after): A5 B5 C5 D5
+Saw: Ti clearly above Te, both peaked on-axis (Ti0=24.2, Te0=12.8, Ti/Te=1.89, tau_eq=274 ms)
+— correct. But default white + default blue/orange, and the Ti-Te GAP (the whole point)
+wasn't emphasized.
+Defect: D-axis (white) + C-axis (the equipartition gap not called out).
+Did: TWEAK in the SHARED anim.animate_profiles — added dark=True (house style + dark
+legend), colors=, and shade_between=(i,j)+shade_label= to fill the band between two series.
+Gallery now shades the Ti-Te gap (Te cyan, Ti orange, warm fill) labeled "shaded = Ti-Te
+(equipartition lag, tau_eq)". dpi 90->110. Added a test for the shade_between branch.
+Verify: regenerated (Ti0 24.2 / Te0 12.8 / Ti/Te 1.89 — unchanged); re-dumped+Read — the gap
+unmistakable. pytest 211 (+1); ruff clean. size 0.77 MB.
+Next: R10 = burn_0d_ignition.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

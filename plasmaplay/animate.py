@@ -92,11 +92,15 @@ def apply_house_style(fig, axes=(), *, dark=True):
 
 
 def animate_profiles(x, frames, times=None, *, path, labels=None, xlabel="r/a",
-                     ylabel="", title="", fps=20, dpi=90, ylim=None):
+                     ylabel="", title="", fps=20, dpi=90, ylim=None, colors=None,
+                     dark=True, shade_between=None, shade_label=""):
     """Animate one or several radial line profiles over time, save to `path` (gif).
 
     `frames` is (n_t, n_x) for a single curve, or (n_t, n_series, n_x) for several
-    curves drawn together (e.g. Te and Ti). Returns the saved Path.
+    curves drawn together (e.g. Te and Ti). `colors` is an optional per-series color
+    list. `shade_between=(i, j)` shades the band between series i and j every frame
+    (e.g. the Ti-Te equipartition gap) and `shade_label` annotates it. Returns the
+    saved Path.
     """
     frames = np.asarray(frames, dtype=float)
     x = np.asarray(x, dtype=float)
@@ -104,19 +108,35 @@ def animate_profiles(x, frames, times=None, *, path, labels=None, xlabel="r/a",
         frames = frames[:, None, :]            # -> (n_t, 1, n_x)
     n_t, n_series, _ = frames.shape
     labels = labels or [None] * n_series
+    colors = colors or [None] * n_series
     if ylim is None:
         ylim = (min(0.0, frames.min()), frames.max() * 1.08 + 1e-30)
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
-    lines = [ax.plot([], [], label=labels[s])[0] for s in range(n_series)]
+    txt = apply_house_style(fig, [ax], dark=dark)
+    lines = [ax.plot([], [], label=labels[s], color=colors[s], lw=2.1)[0]
+             for s in range(n_series)]
     ax.set(xlim=(x.min(), x.max()), ylim=ylim, xlabel=xlabel, ylabel=ylabel)
     if any(lbl is not None for lbl in labels):
-        ax.legend(loc="upper right")
-    ttl = ax.set_title(title)
+        leg = ax.legend(loc="upper right", facecolor=HOUSE_BG if dark else "white",
+                        edgecolor=txt, labelcolor=txt if dark else "black")
+        leg.get_frame().set_alpha(0.6)
+    if shade_between is not None and shade_label:
+        ax.text(0.04, 0.06, shade_label, transform=ax.transAxes, color=txt,
+                fontsize=8, alpha=0.75)
+    ttl = ax.set_title(title, color=txt)
+    holder = {"poly": None}
 
     def draw(i):
         for s, ln in enumerate(lines):
             ln.set_data(x, frames[i, s])
+        if shade_between is not None:
+            a, b = shade_between
+            if holder["poly"] is not None:
+                holder["poly"].remove()
+            shade_c = colors[b] or txt
+            holder["poly"] = ax.fill_between(x, frames[i, a], frames[i, b],
+                                             color=shade_c, alpha=0.18, lw=0)
         if times is not None:
             ttl.set_text(f"{title}   t = {times[i]:.2f} s")
         return (*lines, ttl)

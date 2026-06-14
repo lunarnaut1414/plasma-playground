@@ -76,6 +76,18 @@ def test_animate_profiles_writes_gif(tmp_path):
     assert out.exists() and out.stat().st_size > 0
 
 
+def test_animate_profiles_shade_between(tmp_path):
+    """Two series with a shaded gap band (the Ti-Te equipartition lag) animate cleanly."""
+    x = np.linspace(0, 1, 20)
+    te = np.array([(10 + k) * (1 - x**2) for k in range(6)])
+    ti = np.array([(18 + k) * (1 - x**2) for k in range(6)])
+    frames = np.stack([te, ti], axis=1)                       # (6, 2, 20)
+    out = anim.animate_profiles(x, frames, np.arange(6.0), path=tmp_path / "two.gif",
+                                labels=["Te", "Ti"], colors=["#22d3ee", "#ff9f45"],
+                                shade_between=(0, 1), shade_label="Ti-Te", fps=6, dpi=60)
+    assert out.exists() and Image.open(out).n_frames == 6
+
+
 def test_animate_cross_section_writes_gif(tmp_path):
     rho = np.linspace(0, 1, 41)
     times = np.linspace(0, 3, 10)

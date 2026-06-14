@@ -72,6 +72,23 @@ re-dumped+Read — clean island, the W-bar tracks growth. pytest 208 passed; ruf
 No new test (style-only; apply_house_style already covered). size 2.8 MB.
 Next: R3 = stellarator_flux_surfaces.
 
+## R3 — stellarator_flux_surfaces — REWORK — (pending commit)
+Scores (before): A5 B3 C3 D2  ->  (after): A5 B4 C4 D5
+Saw: thin pastel loops floating tiny in a big WHITE void — pale, small, hard to read the
+twist; clashed with the dark gallery. Physics correct (field lines traced on nested vacuum
+surfaces, iota from geometry) but the beauty shot undersold it badly.
+Defect: D-axis (the gallery's showpiece looked the weakest) + wasted frame (zlim ±2.2 vs
+data ±0.6 -> donut floated small).
+Did: rendering-only REWORK. Dark house style + dark 3-D panes; warm-core->cool-edge vivid
+palette (gold/orange/pink/cyan); halo+core double-stroke GLOW per line (lw 3.4 alpha .10
+under lw 1.15 alpha .95); 3->4 nested surfaces, 5->8 lines each (32 lines, denser weave);
+tightened zlim ±2.2->±1.1 + box_aspect z .42 so it FILLS the frame; elev 26->24; full-turn
+camera (seamless); dpi 90->120, fps 16->18.
+Verify: regenerated (4 surfaces / 32 lines / 6 periods, zero net current — unchanged);
+re-dumped+Read — glowing, centered, the iconic twisty stellarator. pytest 208; ruff clean.
+No new test (render-only; helical_stellarator field + iota covered in test_fields). 4.6 MB.
+Next: R4 = tokamak_discharge_full.
+
 ## R0 — setup — done — 374bed3 (charter) / baseline green
 Did: wrote scripts/_dump_frames.py; regenerated all 11 gifs fresh (gif_gallery.py all).
 Baseline validation lines (each gif's own print):

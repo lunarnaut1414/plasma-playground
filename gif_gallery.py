@@ -542,8 +542,9 @@ def stellarator_flux_surfaces():
     Zt = n_periods * 2 * np.pi
     B = fields.helical_stellarator(eps=0.5, l=l, h=h)
     R_t = 3.0                                              # torus major radius (render)
-    surfaces = [(0.18, "#ffd166"), (0.34, "#ef476f"), (0.5, "#118ab2")]
-    n_lines, lines3d = 5, []
+    # warm core -> cool edge palette, vivid on the dark background
+    surfaces = [(0.12, "#ffe066"), (0.26, "#ff9f45"), (0.40, "#ff5d8f"), (0.52, "#22d3ee")]
+    n_lines, lines3d = 8, []
     for r0, color in surfaces:
         for j in range(n_lines):
             a0 = 2 * np.pi * j / n_lines
@@ -558,23 +559,28 @@ def stellarator_flux_surfaces():
           f"surfaces, {len(lines3d)} field lines over {n_periods} periods (iota from "
           "geometry, zero net current)")
 
-    fig = plt.figure(figsize=(6, 5.4))
+    fig = plt.figure(figsize=(6.4, 6.0))
     ax = fig.add_subplot(111, projection="3d")
+    txt = anim.apply_house_style(fig, [ax], dark=True)
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis.set_pane_color((0.055, 0.067, 0.086, 1.0))
+    fig.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=0.93)
     nframes = 72
 
     def draw(i):
-        ax.clear(); ax.set_axis_off()
+        ax.clear(); ax.set_axis_off(); ax.patch.set_alpha(0.0)
         for X, Y, Z, color in lines3d:
-            ax.plot(X, Y, Z, color=color, lw=0.7, alpha=0.8)
-        rng = R_t + 0.7
-        ax.set_xlim(-rng, rng); ax.set_ylim(-rng, rng); ax.set_zlim(-rng, rng)
-        ax.set_box_aspect((1, 1, 1))
-        ax.view_init(elev=34, azim=360.0 * i / nframes)
-        ax.set_title("Stellarator vacuum flux surfaces (iota from coils, no current)")
+            ax.plot(X, Y, Z, color=color, lw=3.4, alpha=0.10, solid_capstyle="round")
+            ax.plot(X, Y, Z, color=color, lw=1.15, alpha=0.95, solid_capstyle="round")
+        ax.set_xlim(-3.4, 3.4); ax.set_ylim(-3.4, 3.4); ax.set_zlim(-1.1, 1.1)
+        ax.set_box_aspect((1, 1, 0.42))
+        ax.view_init(elev=24, azim=360.0 * i / nframes)        # full turn -> seamless
+        ax.set_title("Stellarator vacuum flux surfaces  ·  ι from coil geometry, zero "
+                     "net current", color=txt, fontsize=10.5, pad=-2)
 
     an = FuncAnimation(fig, draw, frames=nframes, blit=False)
     out = f"{OUT}/stellarator_flux_surfaces.gif"
-    an.save(out, writer=PillowWriter(fps=16), dpi=90)
+    an.save(out, writer=PillowWriter(fps=18), dpi=120)
     plt.close(fig)
     print(f"  wrote {out}")
 

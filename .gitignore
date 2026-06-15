@@ -20,6 +20,8 @@ outputs/
 *.gif
 *.png
 !docs/**/*.png   # keep any committed doc images
+!assets/         # the curated showcase gifs ARE committed (see assets/README.md)
+!assets/**
 
 # OS / editor
 .DS_Store

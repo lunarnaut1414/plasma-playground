@@ -5,6 +5,13 @@ to self-teach (even if superficially) how you model and simulate magnetized
 plasmas: stellarators, tokamaks, MHD drives for space propulsion, and whatever
 else looks interesting.
 
+![Tokamak 3-D discharge](assets/tokamak_3d_discharge.gif)
+
+> A D–T plasma igniting and burning on a 3-D tokamak — glowing torus colored by core
+> temperature, wrapped in its helical confinement field lines and coils, with monster
+> sawteeth crashing the core. **→ See the full [showcase gallery](assets/README.md)** for
+> this, the stellarator counterpart, and the physics behind each.
+
 Built on Python and the open-source scientific/plasma ecosystem. Everything here
 runs comfortably on a laptop CPU (developed on an M2 Max); heavier experiments
 note where a GPU or more cores would help.
